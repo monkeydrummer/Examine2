@@ -383,9 +383,7 @@ public class MoveVertexMode : InteractionModeBase
                 // Delete selected vertices in selection phase
                 if (SubState == MoveVertexSubState.SelectingVertices && _selectionService.SelectedVertices.Count > 0)
                 {
-                    // TODO: Implement delete vertices command
-                    _selectionService.ClearVertexSelection();
-                    OnSubStateChanged(SubState, SubState);
+                    DeleteSelectedVertices();
                 }
                 break;
         }
@@ -560,5 +558,65 @@ public class MoveVertexMode : InteractionModeBase
         });
         
         return items;
+    }
+    
+    private void DeleteSelectedVertices()
+    {
+        // Group vertices by their parent entity
+        var verticesByEntity = new Dictionary<IEntity, List<(VertexHandle handle, int index)>>();
+        
+        foreach (var handle in _selectionService.SelectedVertices.ToList())
+        {
+            if (!verticesByEntity.ContainsKey(handle.Entity))
+            {
+                verticesByEntity[handle.Entity] = new List<(VertexHandle, int)>();
+            }
+            verticesByEntity[handle.Entity].Add((handle, handle.VertexIndex));
+        }
+        
+        // Create composite command to delete all vertices
+        var compositeCommand = new CompositeCommand("Delete selected vertices");
+        
+        foreach (var kvp in verticesByEntity)
+        {
+            var entity = kvp.Key;
+            var vertices = kvp.Value.OrderByDescending(v => v.index).ToList(); // Delete from end to maintain indices
+            
+            // Check if deletion would leave too few vertices
+            int verticesAfterDeletion = 0;
+            if (entity is Polyline polyline)
+            {
+                verticesAfterDeletion = polyline.Vertices.Count - vertices.Count;
+                if (verticesAfterDeletion < 2)
+                {
+                    // Would leave too few vertices - delete the whole entity instead
+                    compositeCommand.AddCommand(new DeleteEntityCommand(_geometryModel, entity));
+                    continue;
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                verticesAfterDeletion = boundary.Vertices.Count - vertices.Count;
+                if (verticesAfterDeletion < 3)
+                {
+                    // Would leave too few vertices - delete the whole entity instead
+                    compositeCommand.AddCommand(new DeleteEntityCommand(_geometryModel, entity));
+                    continue;
+                }
+            }
+            
+            // Delete individual vertices
+            foreach (var (handle, index) in vertices)
+            {
+                compositeCommand.AddCommand(new DeleteVertexCommand(entity, index));
+            }
+        }
+        
+        // Execute the composite command
+        _commandManager.Execute(compositeCommand);
+        
+        // Clear selection
+        _selectionService.ClearVertexSelection();
+        OnSubStateChanged(SubState, SubState);
     }
 }

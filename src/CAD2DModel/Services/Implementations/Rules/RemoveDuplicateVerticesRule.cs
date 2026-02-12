@@ -79,18 +79,40 @@ public class RemoveDuplicateVerticesRule : IGeometryRule
             
             if (distanceSquared < toleranceSquared)
             {
-                // Mark the second vertex for removal
-                verticesToRemove.Add((i + 1) % boundary.Vertices.Count);
+                // Determine which vertex to remove
+                int vertexToRemove;
+                
+                // If this is the closing segment (from last vertex back to first)
+                if (i == boundary.Vertices.Count - 1)
+                {
+                    // Remove the last vertex (the one we're starting from)
+                    vertexToRemove = i;
+                }
+                else
+                {
+                    // Remove the second vertex in the pair
+                    vertexToRemove = i + 1;
+                }
+                
+                if (!verticesToRemove.Contains(vertexToRemove))
+                {
+                    verticesToRemove.Add(vertexToRemove);
+                }
             }
         }
         
-        // Remove vertices in reverse order to maintain indices
-        foreach (var index in verticesToRemove.OrderByDescending(x => x).Distinct())
+        // Only remove vertices if we'll still have at least 3 left
+        int finalCount = boundary.Vertices.Count - verticesToRemove.Count;
+        if (finalCount < 3)
         {
-            if (boundary.Vertices.Count > 3) // Keep at least 3 vertices for a boundary
-            {
-                boundary.Vertices.RemoveAt(index);
-            }
+            // Cannot remove these vertices, would leave too few
+            return;
+        }
+        
+        // Remove vertices in reverse order to maintain indices
+        foreach (var index in verticesToRemove.OrderByDescending(x => x))
+        {
+            boundary.Vertices.RemoveAt(index);
         }
     }
 }
