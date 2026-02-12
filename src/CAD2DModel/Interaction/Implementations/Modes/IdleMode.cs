@@ -1,6 +1,7 @@
 using CAD2DModel.Commands;
 using CAD2DModel.Geometry;
 using CAD2DModel.Services;
+using CAD2DModel.Selection;
 
 namespace CAD2DModel.Interaction.Implementations.Modes;
 
@@ -14,6 +15,8 @@ public class IdleMode : InteractionModeBase
     private readonly ISelectionService _selectionService;
     private readonly IGeometryModel _geometryModel;
     private Point2D? _selectionBoxStart;
+    private Point2D _currentMousePosition;
+    private Camera.Camera2D? _camera;
     
     public IdleMode(
         IModeManager modeManager,
@@ -31,12 +34,21 @@ public class IdleMode : InteractionModeBase
     public override string StatusPrompt => "Click to select entities, drag for selection box";
     public override Cursor Cursor => Interaction.Cursor.Arrow;
     
+    public override void OnEnter(ModeContext context)
+    {
+        base.OnEnter(context);
+        _camera = context.Camera;
+    }
+    
     public override void OnMouseDown(Point2D worldPoint, MouseButton button, ModifierKeys modifiers)
     {
         if (button == MouseButton.Left)
         {
+            // Use camera-aware tolerance
+            double worldTolerance = _camera != null ? 5.0 * _camera.Scale : 0.5;
+            
             // Try to select an entity
-            var hitEntity = _selectionService.HitTest(worldPoint, 0.5, _geometryModel.Entities);
+            var hitEntity = _selectionService.HitTest(worldPoint, worldTolerance, _geometryModel.Entities);
             
             if (hitEntity != null)
             {
@@ -46,14 +58,9 @@ public class IdleMode : InteractionModeBase
             }
             else
             {
-                // Start selection box
+                // Start selection box (or will be treated as click-to-clear in OnMouseUp)
                 _selectionBoxStart = worldPoint;
-                
-                // Clear selection if not holding control
-                if (!modifiers.HasFlag(ModifierKeys.Control))
-                {
-                    _selectionService.ClearSelection();
-                }
+                _currentMousePosition = worldPoint;
             }
         }
     }
@@ -63,7 +70,7 @@ public class IdleMode : InteractionModeBase
         // Update selection box if dragging
         if (_selectionBoxStart.HasValue)
         {
-            // Selection box visualization would be handled in Render()
+            _currentMousePosition = worldPoint;
         }
     }
     
@@ -71,24 +78,37 @@ public class IdleMode : InteractionModeBase
     {
         if (button == MouseButton.Left && _selectionBoxStart.HasValue)
         {
-            // Complete selection box
             var boxStart = _selectionBoxStart.Value;
-            var box = new Rect2D(
-                Math.Min(boxStart.X, worldPoint.X),
-                Math.Min(boxStart.Y, worldPoint.Y),
-                Math.Abs(worldPoint.X - boxStart.X),
-                Math.Abs(worldPoint.Y - boxStart.Y));
             
-            // Determine if crossing or window selection
-            bool crossing = boxStart.X > worldPoint.X; // Crossing selection (right to left)
+            // Check if this was a click (small movement) or a drag
+            double distance = boxStart.DistanceTo(worldPoint);
+            double clickTolerance = _camera != null ? 5.0 * _camera.Scale : 0.5; // 5 pixels
             
-            var selectedEntities = _selectionService.SelectInBox(box, _geometryModel.Entities, crossing);
-            
-            bool addToSelection = false; // First select replaces selection
-            foreach (var entity in selectedEntities)
+            if (distance < clickTolerance)
             {
-                _selectionService.Select(entity, addToSelection);
-                addToSelection = true; // After first, always add
+                // Click on empty space - clear selection
+                _selectionService.ClearAllSelections();
+            }
+            else
+            {
+                // Complete selection box
+                var box = new Rect2D(
+                    Math.Min(boxStart.X, worldPoint.X),
+                    Math.Min(boxStart.Y, worldPoint.Y),
+                    Math.Abs(worldPoint.X - boxStart.X),
+                    Math.Abs(worldPoint.Y - boxStart.Y));
+                
+                // Determine if crossing or window selection
+                bool crossing = boxStart.X > worldPoint.X; // Crossing selection (right to left)
+                
+                var selectedEntities = _selectionService.SelectInBox(box, _geometryModel.Entities, crossing);
+                
+                bool addToSelection = false; // First select replaces selection
+                foreach (var entity in selectedEntities)
+                {
+                    _selectionService.Select(entity, addToSelection);
+                    addToSelection = true; // After first, always add
+                }
             }
             
             _selectionBoxStart = null;
@@ -115,24 +135,110 @@ public class IdleMode : InteractionModeBase
         }
     }
     
+    public override void Render(IRenderContext context)
+    {
+        // Draw selection box if active
+        if (_selectionBoxStart.HasValue)
+        {
+            var start = _selectionBoxStart.Value;
+            var end = _currentMousePosition;
+            
+            // Determine selection mode based on drag direction
+            bool crossingMode = end.X < start.X; // Right-to-left = crossing mode
+            byte r = crossingMode ? (byte)0 : (byte)0;
+            byte g = crossingMode ? (byte)100 : (byte)100;
+            byte b = crossingMode ? (byte)255 : (byte)0;
+            
+            // Draw box outline
+            context.DrawLine(new Point2D(start.X, start.Y), new Point2D(end.X, start.Y), r, g, b, 1, dashed: true);
+            context.DrawLine(new Point2D(end.X, start.Y), new Point2D(end.X, end.Y), r, g, b, 1, dashed: true);
+            context.DrawLine(new Point2D(end.X, end.Y), new Point2D(start.X, end.Y), r, g, b, 1, dashed: true);
+            context.DrawLine(new Point2D(start.X, end.Y), new Point2D(start.X, start.Y), r, g, b, 1, dashed: true);
+        }
+        
+        // Draw selection highlights on selected entities
+        foreach (var entity in _selectionService.SelectedEntities)
+        {
+            if (entity is Polyline polyline)
+            {
+                for (int i = 0; i < polyline.GetSegmentCount(); i++)
+                {
+                    var segment = polyline.GetSegment(i);
+                    context.DrawLine(segment.Start, segment.End, 255, 165, 0, 3, dashed: false); // Orange highlight
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                for (int i = 0; i < boundary.GetSegmentCount(); i++)
+                {
+                    var segment = boundary.GetSegment(i);
+                    context.DrawLine(segment.Start, segment.End, 255, 165, 0, 3, dashed: false); // Orange highlight
+                }
+            }
+        }
+        
+        // Draw selected vertices
+        foreach (var vertex in _selectionService.SelectedVertices)
+        {
+            DrawVertexHandle(context, vertex.Location, true);
+        }
+    }
+    
+    private void DrawVertexHandle(IRenderContext context, Point2D location, bool isSelected)
+    {
+        if (_camera == null)
+            return;
+        
+        // Calculate handle size in world units (larger and more visible)
+        double halfSize = (8.0 / 2.0) * _camera.Scale; // 8 pixels
+        
+        byte r = isSelected ? (byte)255 : (byte)100;
+        byte g = isSelected ? (byte)165 : (byte)100;
+        byte b = isSelected ? (byte)0 : (byte)255;
+        
+        // Draw a filled square handle (draw 4 lines to create filled appearance)
+        var topLeft = new Point2D(location.X - halfSize, location.Y - halfSize);
+        var topRight = new Point2D(location.X + halfSize, location.Y - halfSize);
+        var bottomRight = new Point2D(location.X + halfSize, location.Y + halfSize);
+        var bottomLeft = new Point2D(location.X - halfSize, location.Y + halfSize);
+        
+        // Draw outline with thicker stroke
+        context.DrawLine(topLeft, topRight, r, g, b, 2, dashed: false);
+        context.DrawLine(topRight, bottomRight, r, g, b, 2, dashed: false);
+        context.DrawLine(bottomRight, bottomLeft, r, g, b, 2, dashed: false);
+        context.DrawLine(bottomLeft, topLeft, r, g, b, 2, dashed: false);
+    }
+    
     public override IEnumerable<IContextMenuItem> GetContextMenuItems(Point2D worldPoint)
     {
         var items = new List<IContextMenuItem>();
+        
+        // Selection actions
+        if (_selectionService.SelectedEntities.Any() || _selectionService.SelectedVertices.Any())
+        {
+            items.Add(new ContextMenuItem
+            {
+                Text = "Clear All Selections",
+                Action = () => _selectionService.ClearAllSelections()
+            });
+            
+            items.Add(new ContextMenuItem { IsSeparator = true });
+        }
         
         if (_selectionService.SelectedEntities.Any())
         {
             items.Add(new ContextMenuItem
             {
-                Text = "Delete"
+                Text = $"Delete ({_selectionService.SelectedEntities.Count} entities)"
             });
             
             items.Add(new ContextMenuItem
             {
                 Text = "Properties..."
             });
+            
+            items.Add(new ContextMenuItem { IsSeparator = true });
         }
-        
-        items.Add(new ContextMenuItem { IsSeparator = true });
         
         items.Add(new ContextMenuItem
         {
@@ -149,11 +255,12 @@ public class IdleMode : InteractionModeBase
 }
 
 /// <summary>
-/// Simple context menu item implementation
+/// Simple context menu item implementation with Action support
 /// </summary>
-internal class ContextMenuItem : IContextMenuItem
+public class ContextMenuItem : IContextMenuItem
 {
     public string Text { get; set; } = string.Empty;
+    public Action? Action { get; set; }
     public System.Windows.Input.ICommand? Command { get; set; }
     public bool IsEnabled { get; set; } = true;
     public bool IsSeparator { get; set; }

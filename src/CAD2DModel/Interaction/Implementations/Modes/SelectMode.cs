@@ -27,7 +27,7 @@ public class SelectMode : InteractionModeBase
     /// <summary>
     /// Size of vertex handles in pixels
     /// </summary>
-    private const double VertexHandleSize = 6.0;
+    private const double VertexHandleSize = 8.0;
     
     public SelectMode(
         IModeManager modeManager,
@@ -153,10 +153,10 @@ public class SelectMode : InteractionModeBase
                     _boxStart = null;
                     State = ModeState.WaitingForInput;
                 }
-                else if (_selectionService.SelectedEntities.Count > 0)
+                else if (_selectionService.SelectedEntities.Count > 0 || _selectionService.SelectedVertices.Count > 0)
                 {
-                    // Clear selection
-                    _selectionService.ClearSelection();
+                    // Clear all selections
+                    _selectionService.ClearAllSelections();
                 }
                 else
                 {
@@ -456,20 +456,29 @@ public class SelectMode : InteractionModeBase
         // Calculate handle size in world units
         double halfSize = (VertexHandleSize / 2.0) * _camera.Scale;
         
-        byte r = isSelected ? (byte)255 : (byte)100;
-        byte g = isSelected ? (byte)165 : (byte)100;
+        // More vibrant colors for better visibility
+        byte r = isSelected ? (byte)255 : (byte)0;
+        byte g = isSelected ? (byte)140 : (byte)120;
         byte b = isSelected ? (byte)0 : (byte)255;
+        float strokeWidth = isSelected ? 3.0f : 2.0f;
         
-        // Draw a small square handle
+        // Draw a square handle with thicker lines
         var topLeft = new Point2D(location.X - halfSize, location.Y - halfSize);
         var topRight = new Point2D(location.X + halfSize, location.Y - halfSize);
         var bottomRight = new Point2D(location.X + halfSize, location.Y + halfSize);
         var bottomLeft = new Point2D(location.X - halfSize, location.Y + halfSize);
         
-        context.DrawLine(topLeft, topRight, r, g, b, 1, dashed: false);
-        context.DrawLine(topRight, bottomRight, r, g, b, 1, dashed: false);
-        context.DrawLine(bottomRight, bottomLeft, r, g, b, 1, dashed: false);
-        context.DrawLine(bottomLeft, topLeft, r, g, b, 1, dashed: false);
+        context.DrawLine(topLeft, topRight, r, g, b, strokeWidth, dashed: false);
+        context.DrawLine(topRight, bottomRight, r, g, b, strokeWidth, dashed: false);
+        context.DrawLine(bottomRight, bottomLeft, r, g, b, strokeWidth, dashed: false);
+        context.DrawLine(bottomLeft, topLeft, r, g, b, strokeWidth, dashed: false);
+        
+        // Draw diagonal lines to make it more visible (filled appearance)
+        if (isSelected)
+        {
+            context.DrawLine(topLeft, bottomRight, r, g, b, 1, dashed: false);
+            context.DrawLine(topRight, bottomLeft, r, g, b, 1, dashed: false);
+        }
     }
     
     public override IEnumerable<IContextMenuItem> GetContextMenuItems(Point2D worldPoint)

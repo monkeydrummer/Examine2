@@ -274,25 +274,51 @@ public class AddBoundaryMode : InteractionModeBase
         
         if (_points.Count >= 3)
         {
-            items.Add(new Modes.ContextMenuItem
+            items.Add(new BoundaryContextMenuItem
             {
-                Text = "Finish Boundary"
+                Text = "Finish Boundary",
+                Action = () => FinishBoundary()
             });
         }
         
         if (_points.Count > 0)
         {
-            items.Add(new Modes.ContextMenuItem
+            items.Add(new BoundaryContextMenuItem
             {
-                Text = "Remove Last Point"
+                Text = "Remove Last Point",
+                Action = () => RemoveLastPoint()
             });
         }
         
-        items.Add(new Modes.ContextMenuItem
+        items.Add(new BoundaryContextMenuItem
         {
-            Text = "Cancel"
+            Text = "Cancel",
+            Action = () => CancelBoundary()
         });
         
         return items;
     }
+    
+    private void RemoveLastPoint()
+    {
+        if (_points.Count > 0)
+        {
+            _points.RemoveAt(_points.Count - 1);
+            UpdateCurrentBoundary();
+        }
+    }
+}
+
+/// <summary>
+/// Context menu item for AddBoundaryMode
+/// </summary>
+internal class BoundaryContextMenuItem : IContextMenuItem
+{
+    public string Text { get; set; } = string.Empty;
+    public Action? Action { get; set; }
+    public System.Windows.Input.ICommand? Command { get; set; }
+    public bool IsEnabled { get; set; } = true;
+    public bool IsSeparator { get; set; }
+    public bool IsChecked { get; set; }
+    public IEnumerable<IContextMenuItem>? SubItems { get; set; }
 }

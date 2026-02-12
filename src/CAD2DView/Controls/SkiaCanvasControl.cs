@@ -573,14 +573,19 @@ public class SkiaCanvasControl : UserControl
                     menuItem.IsChecked = true;
                 }
                 
-                // Handle Action property if it exists
-                if (item is CAD2DModel.Interaction.Implementations.Modes.SelectModeContextMenuItem actionItem && actionItem.Action != null)
+                // Handle Action property if it exists (check using reflection for any item with Action property)
+                var actionProperty = item.GetType().GetProperty("Action");
+                if (actionProperty != null)
                 {
-                    menuItem.Click += (s, e) =>
+                    var action = actionProperty.GetValue(item) as Action;
+                    if (action != null)
                     {
-                        actionItem.Action.Invoke();
-                        InvalidateVisual(); // Refresh view after action
-                    };
+                        menuItem.Click += (s, e) =>
+                        {
+                            action.Invoke();
+                            InvalidateVisual(); // Refresh view after action
+                        };
+                    }
                 }
                 else if (item.Command != null)
                 {
