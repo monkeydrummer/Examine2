@@ -131,13 +131,16 @@ public partial class MainWindow : Window
         if (_modeManager == null || _serviceProvider == null)
             return;
         
-        // TODO: Implement MoveBoundaryMode
-        // For now, just show a message
-        MessageBox.Show(
-            "Move Boundary mode is not yet implemented. This will allow you to move entire boundaries by dragging them.",
-            "Not Implemented",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        var commandManager = _serviceProvider.GetService(typeof(ICommandManager)) as ICommandManager;
+        var selectionService = _serviceProvider.GetService(typeof(ISelectionService)) as ISelectionService;
+        var snapService = _serviceProvider.GetService(typeof(ISnapService)) as ISnapService;
+        var geometryModel = _serviceProvider.GetService(typeof(IGeometryModel)) as IGeometryModel;
+        
+        if (commandManager != null && selectionService != null && snapService != null && geometryModel != null)
+        {
+            var mode = new MoveBoundaryMode(_modeManager, commandManager, selectionService, snapService, geometryModel);
+            _modeManager.EnterMode(mode);
+        }
     }
     
     private void ZoomIn()

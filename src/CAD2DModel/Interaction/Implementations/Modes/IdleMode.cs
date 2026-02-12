@@ -339,9 +339,8 @@ public class IdleMode : InteractionModeBase
         {
             Text = "Move Boundary",
             Action = () => {
-                // TODO: Implement MoveBoundaryMode
-                // var mode = new MoveBoundaryMode(_modeManager, _commandManager, _geometryModel, _selectionService, _snapService);
-                // _modeManager.EnterMode(mode);
+                var mode = new MoveBoundaryMode(_modeManager, _commandManager, _selectionService, _snapService, _geometryModel);
+                _modeManager.EnterMode(mode);
             }
         });
         
