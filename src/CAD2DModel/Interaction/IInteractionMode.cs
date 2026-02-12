@@ -24,6 +24,7 @@ public interface IContextMenuItem
     ICommand? Command { get; }
     bool IsEnabled { get; }
     bool IsSeparator { get; }
+    bool IsChecked { get; }
     IEnumerable<IContextMenuItem>? SubItems { get; }
 }
 

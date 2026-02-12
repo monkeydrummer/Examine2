@@ -157,5 +157,6 @@ internal class ContextMenuItem : IContextMenuItem
     public System.Windows.Input.ICommand? Command { get; set; }
     public bool IsEnabled { get; set; } = true;
     public bool IsSeparator { get; set; }
+    public bool IsChecked { get; set; }
     public IEnumerable<IContextMenuItem>? SubItems { get; set; }
 }

@@ -141,6 +141,11 @@ public class SelectMode : InteractionModeBase
                     // Clear selection
                     _selectionService.ClearSelection();
                 }
+                else
+                {
+                    // Return to idle mode
+                    _modeManager.ReturnToIdle();
+                }
                 break;
                 
             case Key.A:
@@ -308,8 +313,72 @@ public class SelectMode : InteractionModeBase
     
     public override IEnumerable<IContextMenuItem> GetContextMenuItems(Point2D worldPoint)
     {
-        // TODO: Implement proper context menu items when UI is ready
-        return Enumerable.Empty<IContextMenuItem>();
+        var items = new List<IContextMenuItem>();
+        
+        // Selection actions
+        if (_selectionService.SelectedEntities.Count > 0)
+        {
+            items.Add(new SelectModeContextMenuItem
+            {
+                Text = $"Delete ({_selectionService.SelectedEntities.Count} items)",
+                Action = DeleteSelectedEntities
+            });
+            
+            items.Add(new SelectModeContextMenuItem
+            {
+                Text = "Clear Selection",
+                Action = () => _selectionService.ClearSelection()
+            });
+            
+            items.Add(new SelectModeContextMenuItem { IsSeparator = true });
+        }
+        
+        // Selection filter options
+        items.Add(new SelectModeContextMenuItem
+        {
+            Text = "Filter: All Entities",
+            Action = () => Filter = SelectionFilter.All,
+            IsChecked = Filter == SelectionFilter.All
+        });
+        
+        items.Add(new SelectModeContextMenuItem
+        {
+            Text = "Filter: Boundaries Only",
+            Action = () => Filter = SelectionFilter.Boundaries,
+            IsChecked = Filter == SelectionFilter.Boundaries
+        });
+        
+        items.Add(new SelectModeContextMenuItem
+        {
+            Text = "Filter: Polylines Only",
+            Action = () => Filter = SelectionFilter.Polylines,
+            IsChecked = Filter == SelectionFilter.Polylines
+        });
+        
+        items.Add(new SelectModeContextMenuItem { IsSeparator = true });
+        
+        // Mode actions
+        items.Add(new SelectModeContextMenuItem
+        {
+            Text = "Exit Selection Mode",
+            Action = () => _modeManager.ReturnToIdle()
+        });
+        
+        return items;
     }
+}
+
+/// <summary>
+/// Context menu item for SelectMode with support for checked items and actions
+/// </summary>
+public class SelectModeContextMenuItem : IContextMenuItem
+{
+    public string Text { get; set; } = string.Empty;
+    public Action? Action { get; set; }
+    public System.Windows.Input.ICommand? Command { get; set; }
+    public bool IsEnabled { get; set; } = true;
+    public bool IsSeparator { get; set; }
+    public bool IsChecked { get; set; }
+    public IEnumerable<IContextMenuItem>? SubItems { get; set; }
 }
 

@@ -188,9 +188,16 @@ public class MoveVertexMode : InteractionModeBase
     {
         var items = new List<IContextMenuItem>();
         
-        items.Add(new Modes.ContextMenuItem
+        items.Add(new SelectModeContextMenuItem
         {
-            Text = "Cancel"
+            Text = "Cancel Move",
+            Action = () => CancelMove()
+        });
+        
+        items.Add(new SelectModeContextMenuItem
+        {
+            Text = "Exit Move Vertex Mode",
+            Action = () => _modeManager.ReturnToIdle()
         });
         
         return items;

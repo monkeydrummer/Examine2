@@ -409,6 +409,14 @@ public class SkiaCanvasControl : UserControl
             var button = ConvertMouseButton(e.ChangedButton);
             var modifiers = ConvertModifierKeys(Keyboard.Modifiers);
             
+            // Handle right-click for context menu
+            if (button == CAD2DModel.Interaction.MouseButton.Right)
+            {
+                ShowContextMenu(worldPos);
+                e.Handled = true;
+                return;
+            }
+            
             _modeManager.CurrentMode.OnMouseDown(worldPos, button, modifiers);
             InvalidateVisual();
             e.Handled = true;
@@ -531,6 +539,60 @@ public class SkiaCanvasControl : UserControl
         
         var statusText = _modeManager.CurrentMode.StatusPrompt;
         StatusTextChanged?.Invoke(this, statusText);
+    }
+    
+    private void ShowContextMenu(Point2D worldPoint)
+    {
+        if (_modeManager == null)
+            return;
+        
+        var menuItems = _modeManager.CurrentMode.GetContextMenuItems(worldPoint);
+        if (!menuItems.Any())
+            return;
+        
+        var contextMenu = new ContextMenu();
+        
+        foreach (var item in menuItems)
+        {
+            if (item.IsSeparator)
+            {
+                contextMenu.Items.Add(new Separator());
+            }
+            else
+            {
+                var menuItem = new MenuItem
+                {
+                    Header = item.Text,
+                    IsEnabled = item.IsEnabled
+                };
+                
+                // Add checkmark if IsChecked is true
+                if (item.IsChecked)
+                {
+                    menuItem.IsCheckable = true;
+                    menuItem.IsChecked = true;
+                }
+                
+                // Handle Action property if it exists
+                if (item is CAD2DModel.Interaction.Implementations.Modes.SelectModeContextMenuItem actionItem && actionItem.Action != null)
+                {
+                    menuItem.Click += (s, e) =>
+                    {
+                        actionItem.Action.Invoke();
+                        InvalidateVisual(); // Refresh view after action
+                    };
+                }
+                else if (item.Command != null)
+                {
+                    menuItem.Command = item.Command;
+                }
+                
+                contextMenu.Items.Add(menuItem);
+            }
+        }
+        
+        contextMenu.IsOpen = true;
+        ContextMenu = contextMenu;
     }
     
     #region Type Conversion Helpers
