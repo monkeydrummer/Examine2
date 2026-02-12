@@ -34,6 +34,11 @@ public interface ISelectionService
     VertexHandle? HitTestVertex(Point2D point, double tolerance, IEnumerable<IEntity> entities);
     
     /// <summary>
+    /// Hit test to find ALL vertices at a point (for coincident vertices)
+    /// </summary>
+    List<VertexHandle> HitTestAllVertices(Point2D point, double tolerance, IEnumerable<IEntity> entities);
+    
+    /// <summary>
     /// Hit test to find segment at point
     /// </summary>
     SegmentHandle? HitTestSegment(Point2D point, double tolerance, IEnumerable<IEntity> entities);

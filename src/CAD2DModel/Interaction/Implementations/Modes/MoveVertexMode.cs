@@ -179,34 +179,39 @@ public class MoveVertexMode : InteractionModeBase
     private void HandleVertexSelection(Point2D worldPoint, ModifierKeys modifiers)
     {
         double tolerance = _camera != null ? 8.0 * _camera.Scale : 0.5;
-        var clickedVertex = _selectionService.HitTestVertex(worldPoint, tolerance, _geometryModel.Entities);
         
-        if (clickedVertex != null)
+        // Find ALL vertices at this location (handles coincident vertices at intersections)
+        var clickedVertices = _selectionService.HitTestAllVertices(worldPoint, tolerance, _geometryModel.Entities);
+        
+        if (clickedVertices.Count > 0)
         {
-            bool addToSelection = modifiers.HasFlag(ModifierKeys.Control);
+            bool ctrlPressed = (modifiers & ModifierKeys.Control) != 0;
             
-            if (addToSelection)
+            if (ctrlPressed)
             {
-                // Ctrl+Click: toggle selection
-                _selectionService.ToggleVertexSelection(clickedVertex);
+                // Toggle selection for all vertices at this location
+                foreach (var vertex in clickedVertices)
+                {
+                    _selectionService.ToggleVertexSelection(vertex);
+                }
             }
             else
             {
-                // Regular click: if vertex is already selected, keep selection; otherwise, select only this one
-                if (!_selectionService.SelectedVertices.Contains(clickedVertex))
+                // Clear selection and select all vertices at this location
+                _selectionService.ClearVertexSelection();
+                foreach (var vertex in clickedVertices)
                 {
-                    _selectionService.ClearVertexSelection();
-                    _selectionService.SelectVertex(clickedVertex);
+                    _selectionService.SelectVertex(vertex, addToSelection: true);
                 }
             }
             
-            // Force status prompt update
+            // Trigger UI update
             OnSubStateChanged(SubState, SubState);
         }
         else
         {
-            // Clicked on empty space - clear selection unless holding Ctrl
-            if (!modifiers.HasFlag(ModifierKeys.Control))
+            // Clicked on empty space - clear selection
+            if ((modifiers & ModifierKeys.Control) == 0)
             {
                 _selectionService.ClearVertexSelection();
                 OnSubStateChanged(SubState, SubState);
@@ -302,6 +307,9 @@ public class MoveVertexMode : InteractionModeBase
             }
         }
         
+        // Collect all affected entities for rule application
+        var affectedEntities = new HashSet<IEntity>();
+        
         // Execute move commands for all vertices
         foreach (var handle in _selectionService.SelectedVertices)
         {
@@ -313,10 +321,23 @@ public class MoveVertexMode : InteractionModeBase
             var vertex = GetVertex(handle);
             if (vertex != null)
             {
-                var command = new MoveVertexCommand(vertex, newLoc);
+                // Pass parent entity and model to command so rules can be applied
+                var command = new MoveVertexCommand(vertex, newLoc, handle.Entity, _geometryModel);
                 _commandManager.Execute(command);
+                
+                // Track affected entity
+                affectedEntities.Add(handle.Entity);
             }
         }
+        
+        // Apply rules to all affected entities (handles intersections, duplicates, etc.)
+        foreach (var entity in affectedEntities)
+        {
+            _geometryModel.ApplyRulesToEntity(entity);
+        }
+        
+        // Apply rules to ALL entities to detect new intersections with other boundaries
+        _geometryModel.ApplyAllRules();
         
         // Reset for next move operation
         var oldSubState = SubState;

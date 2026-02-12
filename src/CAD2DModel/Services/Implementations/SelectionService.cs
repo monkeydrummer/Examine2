@@ -250,6 +250,45 @@ public class SelectionService : ISelectionService
         return null;
     }
     
+    public List<VertexHandle> HitTestAllVertices(Point2D point, double tolerance, IEnumerable<IEntity> entities)
+    {
+        var results = new List<VertexHandle>();
+        var toleranceSquared = tolerance * tolerance;
+        
+        foreach (var entity in entities)
+        {
+            if (!entity.IsVisible)
+                continue;
+            
+            if (entity is Polyline polyline)
+            {
+                for (int i = 0; i < polyline.Vertices.Count; i++)
+                {
+                    var vertex = polyline.Vertices[i];
+                    var distSquared = point.DistanceSquaredTo(vertex.Location);
+                    if (distSquared <= toleranceSquared)
+                    {
+                        results.Add(new VertexHandle(polyline, i));
+                    }
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                for (int i = 0; i < boundary.Vertices.Count; i++)
+                {
+                    var vertex = boundary.Vertices[i];
+                    var distSquared = point.DistanceSquaredTo(vertex.Location);
+                    if (distSquared <= toleranceSquared)
+                    {
+                        results.Add(new VertexHandle(boundary, i));
+                    }
+                }
+            }
+        }
+        
+        return results;
+    }
+    
     public IEnumerable<VertexHandle> SelectVerticesInBox(Rect2D box, IEnumerable<IEntity> entities)
     {
         var vertices = new List<VertexHandle>();

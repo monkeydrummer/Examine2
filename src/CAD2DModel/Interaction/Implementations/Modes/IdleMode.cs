@@ -257,6 +257,27 @@ public class IdleMode : InteractionModeBase
                 }
             });
             
+            // Check if any selected entities are boundaries
+            var selectedBoundaries = _selectionService.SelectedEntities.OfType<Boundary>().ToList();
+            if (selectedBoundaries.Any())
+            {
+                bool allIntersectable = selectedBoundaries.All(b => b.Intersectable);
+                
+                items.Add(new ContextMenuItem
+                {
+                    Text = "Make Intersectable",
+                    IsChecked = allIntersectable,
+                    Action = () => {
+                        foreach (var boundary in selectedBoundaries)
+                        {
+                            boundary.Intersectable = !allIntersectable;
+                        }
+                        // Apply rules to detect intersections
+                        _geometryModel.ApplyAllRules();
+                    }
+                });
+            }
+            
             items.Add(new ContextMenuItem
             {
                 Text = "Properties..."

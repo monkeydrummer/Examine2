@@ -2,6 +2,7 @@ using CAD2DModel.Commands;
 using CAD2DModel.Interaction;
 using CAD2DModel.Services;
 using CAD2DModel.Services.Implementations;
+using CAD2DModel.Services.Implementations.Rules;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CAD2DModel.DI;
@@ -22,9 +23,28 @@ public static class ServiceConfiguration
         services.AddSingleton<ISelectionService, SelectionService>();
         services.AddTransient(typeof(ISpatialIndex<>), typeof(SpatialIndex<>));
         
-        // Geometry rule engine
-        services.AddSingleton<IGeometryRuleEngine, GeometryRuleEngine>();
-        services.AddSingleton<IGeometryModel, GeometryModel>();
+        // Geometry rule engine and model
+        services.AddSingleton<IGeometryRuleEngine>(sp => 
+        {
+            var engine = new GeometryRuleEngine();
+            
+            // Register default rules (sorted by priority)
+            engine.RegisterRule(new MinimumVertexCountRule());
+            engine.RegisterRule(new RemoveDuplicateVerticesRule(tolerance: 0.0001));
+            engine.RegisterRule(new MinimumSegmentLengthRule(minimumLength: 0.001));
+            engine.RegisterRule(new BoundaryIntersectionRule(tolerance: 1e-6));
+            engine.RegisterRule(new CounterClockwiseWindingRule());
+            
+            return engine;
+        });
+        
+        services.AddSingleton<IGeometryModel>(sp => 
+        {
+            var model = new GeometryModel();
+            var ruleEngine = sp.GetRequiredService<IGeometryRuleEngine>();
+            model.SetRuleEngine(ruleEngine);
+            return model;
+        });
         
         // Command and interaction services
         services.AddSingleton<ICommandManager>(sp => new Commands.CommandManager(maxUndoLevels: 100));
@@ -38,15 +58,4 @@ public static class ServiceConfiguration
         
         return services;
     }
-}
-
-// Placeholder implementations for services not yet implemented
-
-internal class GeometryRuleEngine : IGeometryRuleEngine
-{
-    public bool Enabled { get; set; } = true;
-    public void RegisterRule(IGeometryRule rule) => throw new NotImplementedException();
-    public void UnregisterRule(IGeometryRule rule) => throw new NotImplementedException();
-    public void ApplyRules(Geometry.IEntity entity, IGeometryModel model) => throw new NotImplementedException();
-    public void ApplyAllRules(IGeometryModel model) => throw new NotImplementedException();
 }

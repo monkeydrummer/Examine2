@@ -8,12 +8,20 @@ public class Boundary : Polyline
     public Boundary() : base()
     {
         IsClosed = true;
+        Intersectable = false; // Default: boundaries don't intersect
     }
     
     public Boundary(IEnumerable<Point2D> points) : base(points)
     {
         IsClosed = true;
+        Intersectable = false;
     }
+    
+    /// <summary>
+    /// Determines if this boundary should be checked for intersections with other boundaries
+    /// If true, crossing boundaries will have vertices added at intersection points
+    /// </summary>
+    public bool Intersectable { get; set; }
     
     /// <summary>
     /// Calculate the signed area of the boundary (positive = counterclockwise)

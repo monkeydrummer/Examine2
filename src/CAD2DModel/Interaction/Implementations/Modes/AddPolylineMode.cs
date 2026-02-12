@@ -254,6 +254,9 @@ public class AddPolylineMode : InteractionModeBase
         if (_currentPolyline == null || _points.Count < 2)
             return;
         
+        // Apply geometry rules now that the polyline is complete
+        _geometryModel.ApplyRulesToEntity(_currentPolyline);
+        
         // Create command to add the polyline (for undo/redo)
         var command = new AddPolylineCommand(_geometryModel, _currentPolyline);
         // Note: Polyline already added to model during creation, so this is just for undo/redo tracking

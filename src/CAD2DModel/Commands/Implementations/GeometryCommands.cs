@@ -86,23 +86,39 @@ public class MoveVertexCommand : CommandBase
     private readonly Vertex _vertex;
     private readonly Point2D _newLocation;
     private readonly Point2D _oldLocation;
+    private readonly IEntity? _parentEntity;
+    private readonly IGeometryModel? _model;
     
-    public MoveVertexCommand(Vertex vertex, Point2D newLocation)
+    public MoveVertexCommand(Vertex vertex, Point2D newLocation, IEntity? parentEntity = null, IGeometryModel? model = null)
         : base($"Move vertex to {newLocation}")
     {
         _vertex = vertex ?? throw new ArgumentNullException(nameof(vertex));
         _oldLocation = vertex.Location;
         _newLocation = newLocation;
+        _parentEntity = parentEntity;
+        _model = model;
     }
     
     public override void Execute()
     {
         _vertex.Location = _newLocation;
+        
+        // Apply rules to the parent entity if available
+        if (_parentEntity != null && _model != null)
+        {
+            _model.ApplyRulesToEntity(_parentEntity);
+        }
     }
     
     public override void Undo()
     {
         _vertex.Location = _oldLocation;
+        
+        // Apply rules to the parent entity if available
+        if (_parentEntity != null && _model != null)
+        {
+            _model.ApplyRulesToEntity(_parentEntity);
+        }
     }
 }
 

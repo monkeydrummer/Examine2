@@ -68,4 +68,19 @@ public interface IGeometryModel
     void AddEntity(IEntity entity);
     void RemoveEntity(IEntity entity);
     IEntity? FindEntity(Guid id);
+    
+    /// <summary>
+    /// Set the rule engine (called by DI container)
+    /// </summary>
+    void SetRuleEngine(IGeometryRuleEngine ruleEngine);
+    
+    /// <summary>
+    /// Apply all geometry rules to all entities
+    /// </summary>
+    void ApplyAllRules();
+    
+    /// <summary>
+    /// Apply rules to a specific entity
+    /// </summary>
+    void ApplyRulesToEntity(IEntity entity);
 }

@@ -20,6 +20,7 @@ public class AddBoundaryMode : InteractionModeBase
     private Point2D _currentMousePosition;
     private SnapResult? _currentSnapResult;
     private Camera.Camera2D? _camera;
+    private bool _makeIntersectable = false; // User preference for new boundaries
     
     // Arc/Circle drawing state
     private DrawingSubMode _drawingMode = DrawingSubMode.Line;
@@ -206,7 +207,8 @@ public class AddBoundaryMode : InteractionModeBase
             _currentBoundary = new Boundary
             {
                 Name = $"Boundary {DateTime.Now:HHmmss}",
-                IsClosed = true
+                IsClosed = true,
+                Intersectable = _makeIntersectable
             };
             
             foreach (var pt in _points)
@@ -256,6 +258,9 @@ public class AddBoundaryMode : InteractionModeBase
     {
         if (_currentBoundary == null || _points.Count < 3)
             return;
+        
+        // Apply geometry rules now that the boundary is complete
+        _geometryModel.ApplyRulesToEntity(_currentBoundary);
         
         // Create command to add the boundary (for undo/redo)
         var command = new AddPolylineCommand(_geometryModel, _currentBoundary);
@@ -529,6 +534,21 @@ public class AddBoundaryMode : InteractionModeBase
     public override IEnumerable<IContextMenuItem> GetContextMenuItems(Point2D worldPoint)
     {
         var items = new List<IContextMenuItem>();
+        
+        // Intersectable toggle (always available)
+        items.Add(new BoundaryContextMenuItem
+        {
+            Text = "Make Intersectable",
+            IsChecked = _makeIntersectable,
+            Action = () => {
+                _makeIntersectable = !_makeIntersectable;
+                if (_currentBoundary != null)
+                {
+                    _currentBoundary.Intersectable = _makeIntersectable;
+                }
+            }
+        });
+        items.Add(new BoundaryContextMenuItem { IsSeparator = true });
         
         // Drawing mode options (only in line mode with at least one point)
         if (_points.Count > 0 && _drawingMode == DrawingSubMode.Line)
