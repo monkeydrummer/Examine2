@@ -203,9 +203,10 @@ public class SelectMode : InteractionModeBase
             
             // Determine selection mode based on drag direction
             bool crossingMode = end.X < start.X; // Right-to-left = crossing mode
-            byte r = crossingMode ? (byte)0 : (byte)0;
-            byte g = crossingMode ? (byte)100 : (byte)100;
-            byte b = crossingMode ? (byte)255 : (byte)0;
+            // Crossing mode (right-to-left) = GREEN, Window mode (left-to-right) = BLUE
+            byte r = (byte)0;
+            byte g = crossingMode ? (byte)150 : (byte)100;
+            byte b = crossingMode ? (byte)0 : (byte)255;
             
             // Draw box outline
             context.DrawLine(new Point2D(start.X, start.Y), new Point2D(end.X, start.Y), r, g, b, 1, dashed: true);
