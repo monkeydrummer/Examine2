@@ -36,7 +36,7 @@ public class ModeManager : IModeManager
         _geometryModel = geometryModel ?? throw new ArgumentNullException(nameof(geometryModel));
         
         // Create idle mode
-        _idleMode = new Modes.IdleMode(this, commandManager, selectionService, geometryModel);
+        _idleMode = new Modes.IdleMode(this, commandManager, selectionService, geometryModel, snapService);
         _currentMode = _idleMode;
         
         // Enter idle mode

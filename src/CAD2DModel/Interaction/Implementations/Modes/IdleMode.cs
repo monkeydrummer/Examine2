@@ -14,6 +14,7 @@ public class IdleMode : InteractionModeBase
     private readonly ICommandManager _commandManager;
     private readonly ISelectionService _selectionService;
     private readonly IGeometryModel _geometryModel;
+    private readonly ISnapService _snapService;
     private Point2D? _selectionBoxStart;
     private Point2D _currentMousePosition;
     private Camera.Camera2D? _camera;
@@ -22,12 +23,14 @@ public class IdleMode : InteractionModeBase
         IModeManager modeManager,
         ICommandManager commandManager,
         ISelectionService selectionService,
-        IGeometryModel geometryModel)
+        IGeometryModel geometryModel,
+        ISnapService snapService)
     {
         _modeManager = modeManager ?? throw new ArgumentNullException(nameof(modeManager));
         _commandManager = commandManager ?? throw new ArgumentNullException(nameof(commandManager));
         _selectionService = selectionService ?? throw new ArgumentNullException(nameof(selectionService));
         _geometryModel = geometryModel ?? throw new ArgumentNullException(nameof(geometryModel));
+        _snapService = snapService ?? throw new ArgumentNullException(nameof(snapService));
     }
     
     public override string Name => "Idle";
@@ -230,7 +233,14 @@ public class IdleMode : InteractionModeBase
         {
             items.Add(new ContextMenuItem
             {
-                Text = $"Delete ({_selectionService.SelectedEntities.Count} entities)"
+                Text = $"Delete ({_selectionService.SelectedEntities.Count} entities)",
+                Action = () => {
+                    foreach (var entity in _selectionService.SelectedEntities.ToList())
+                    {
+                        _geometryModel.RemoveEntity(entity);
+                    }
+                    _selectionService.ClearSelection();
+                }
             });
             
             items.Add(new ContextMenuItem
@@ -243,12 +253,20 @@ public class IdleMode : InteractionModeBase
         
         items.Add(new ContextMenuItem
         {
-            Text = "Add Boundary"
+            Text = "Add Boundary",
+            Action = () => {
+                var mode = new AddBoundaryMode(_modeManager, _commandManager, _geometryModel, _snapService);
+                _modeManager.EnterMode(mode);
+            }
         });
         
         items.Add(new ContextMenuItem
         {
-            Text = "Add Polyline"
+            Text = "Add Polyline",
+            Action = () => {
+                var mode = new AddPolylineMode(_modeManager, _commandManager, _geometryModel, _snapService);
+                _modeManager.EnterMode(mode);
+            }
         });
         
         return items;

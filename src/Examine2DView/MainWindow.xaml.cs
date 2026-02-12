@@ -93,9 +93,18 @@ public partial class MainWindow : Window
     
     private void EnterAddPolylineMode()
     {
-        // TODO: Implement AddPolylineMode when ready
-        System.Windows.MessageBox.Show("Add Polyline mode coming soon!", "Not Implemented", 
-            MessageBoxButton.OK, MessageBoxImage.Information);
+        if (_modeManager == null || _serviceProvider == null)
+            return;
+        
+        var commandManager = _serviceProvider.GetService<ICommandManager>();
+        var geometryModel = _serviceProvider.GetService<IGeometryModel>();
+        var snapService = _serviceProvider.GetService<ISnapService>();
+        
+        if (commandManager != null && geometryModel != null && snapService != null)
+        {
+            var mode = new AddPolylineMode(_modeManager, commandManager, geometryModel, snapService);
+            _modeManager.EnterMode(mode);
+        }
     }
     
     private void EnterMoveVertexMode()
