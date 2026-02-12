@@ -1,4 +1,5 @@
 using CAD2DModel.Geometry;
+using CAD2DModel.Services;
 
 namespace CAD2DModel.Commands.Implementations;
 
@@ -105,14 +106,50 @@ public class MoveVertexCommand : CommandBase
 }
 
 /// <summary>
+/// Command to add any entity to the model
+/// </summary>
+public class AddEntityCommand : CommandBase
+{
+    private readonly IGeometryModel _model;
+    private readonly IEntity _entity;
+    
+    public AddEntityCommand(IGeometryModel model, IEntity entity)
+        : base($"Add {GetEntityTypeName(entity)} '{entity.Name}'")
+    {
+        _model = model ?? throw new ArgumentNullException(nameof(model));
+        _entity = entity ?? throw new ArgumentNullException(nameof(entity));
+    }
+    
+    public override void Execute()
+    {
+        _model.AddEntity(_entity);
+    }
+    
+    public override void Undo()
+    {
+        _model.RemoveEntity(_entity);
+    }
+    
+    private static string GetEntityTypeName(IEntity entity)
+    {
+        return entity switch
+        {
+            Boundary => "boundary",
+            Polyline => "polyline",
+            _ => "entity"
+        };
+    }
+}
+
+/// <summary>
 /// Command to add a polyline to the model
 /// </summary>
 public class AddPolylineCommand : CommandBase
 {
-    private readonly Services.IGeometryModel _model;
+    private readonly IGeometryModel _model;
     private readonly Polyline _polyline;
     
-    public AddPolylineCommand(Services.IGeometryModel model, Polyline polyline)
+    public AddPolylineCommand(IGeometryModel model, Polyline polyline)
         : base($"Add polyline '{polyline.Name}'")
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
@@ -131,14 +168,112 @@ public class AddPolylineCommand : CommandBase
 }
 
 /// <summary>
+/// Command to add a boundary to the model
+/// </summary>
+public class AddBoundaryCommand : CommandBase
+{
+    private readonly IGeometryModel _model;
+    private readonly Boundary _boundary;
+    
+    public AddBoundaryCommand(IGeometryModel model, Boundary boundary)
+        : base($"Add boundary '{boundary.Name}'")
+    {
+        _model = model ?? throw new ArgumentNullException(nameof(model));
+        _boundary = boundary ?? throw new ArgumentNullException(nameof(boundary));
+    }
+    
+    public override void Execute()
+    {
+        _model.AddEntity(_boundary);
+    }
+    
+    public override void Undo()
+    {
+        _model.RemoveEntity(_boundary);
+    }
+}
+
+/// <summary>
+/// Command to delete any entity from the model
+/// </summary>
+public class DeleteEntityCommand : CommandBase
+{
+    private readonly IGeometryModel _model;
+    private readonly IEntity _entity;
+    
+    public DeleteEntityCommand(IGeometryModel model, IEntity entity)
+        : base($"Delete {GetEntityTypeName(entity)} '{entity.Name}'")
+    {
+        _model = model ?? throw new ArgumentNullException(nameof(model));
+        _entity = entity ?? throw new ArgumentNullException(nameof(entity));
+    }
+    
+    public override void Execute()
+    {
+        _model.RemoveEntity(_entity);
+    }
+    
+    public override void Undo()
+    {
+        _model.AddEntity(_entity);
+    }
+    
+    private static string GetEntityTypeName(IEntity entity)
+    {
+        return entity switch
+        {
+            Boundary => "boundary",
+            Polyline => "polyline",
+            _ => "entity"
+        };
+    }
+}
+
+/// <summary>
+/// Command to delete multiple entities from the model
+/// </summary>
+public class DeleteMultipleEntitiesCommand : CommandBase
+{
+    private readonly IGeometryModel _model;
+    private readonly List<IEntity> _entities;
+    
+    public DeleteMultipleEntitiesCommand(IGeometryModel model, IEnumerable<IEntity> entities)
+        : base($"Delete {entities.Count()} entities")
+    {
+        _model = model ?? throw new ArgumentNullException(nameof(model));
+        _entities = entities?.ToList() ?? throw new ArgumentNullException(nameof(entities));
+        
+        if (_entities.Count == 0)
+            throw new ArgumentException("Must provide at least one entity to delete", nameof(entities));
+    }
+    
+    public override void Execute()
+    {
+        foreach (var entity in _entities)
+        {
+            _model.RemoveEntity(entity);
+        }
+    }
+    
+    public override void Undo()
+    {
+        // Add back in reverse order to maintain original order
+        for (int i = _entities.Count - 1; i >= 0; i--)
+        {
+            _model.AddEntity(_entities[i]);
+        }
+    }
+}
+
+/// <summary>
 /// Command to remove a polyline from the model
 /// </summary>
 public class RemovePolylineCommand : CommandBase
 {
-    private readonly Services.IGeometryModel _model;
+    private readonly IGeometryModel _model;
     private readonly Polyline _polyline;
     
-    public RemovePolylineCommand(Services.IGeometryModel model, Polyline polyline)
+    public RemovePolylineCommand(IGeometryModel model, Polyline polyline)
         : base($"Remove polyline '{polyline.Name}'")
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
@@ -153,6 +288,74 @@ public class RemovePolylineCommand : CommandBase
     public override void Undo()
     {
         _model.AddEntity(_polyline);
+    }
+}
+
+/// <summary>
+/// Command to delete a vertex from a polyline or boundary
+/// </summary>
+public class DeleteVertexCommand : CommandBase
+{
+    private readonly IEntity _entity;
+    private readonly int _vertexIndex;
+    private readonly Vertex _deletedVertex;
+    
+    public DeleteVertexCommand(IEntity entity, int vertexIndex)
+        : base($"Delete vertex at index {vertexIndex}")
+    {
+        _entity = entity ?? throw new ArgumentNullException(nameof(entity));
+        _vertexIndex = vertexIndex;
+        
+        // Store the vertex before deletion
+        if (entity is Polyline polyline)
+        {
+            _deletedVertex = polyline.Vertices[vertexIndex];
+        }
+        else if (entity is Boundary boundary)
+        {
+            _deletedVertex = boundary.Vertices[vertexIndex];
+        }
+        else
+        {
+            throw new ArgumentException("Entity must be a Polyline or Boundary", nameof(entity));
+        }
+    }
+    
+    public override void Execute()
+    {
+        if (_entity is Polyline polyline)
+        {
+            polyline.RemoveVertexAt(_vertexIndex);
+        }
+        else if (_entity is Boundary boundary)
+        {
+            boundary.RemoveVertexAt(_vertexIndex);
+        }
+    }
+    
+    public override void Undo()
+    {
+        if (_entity is Polyline polyline)
+        {
+            polyline.Vertices.Insert(_vertexIndex, _deletedVertex);
+        }
+        else if (_entity is Boundary boundary)
+        {
+            boundary.Vertices.Insert(_vertexIndex, _deletedVertex);
+        }
+    }
+    
+    public override bool CanExecute()
+    {
+        if (_entity is Polyline polyline)
+        {
+            return polyline.Vertices.Count > 2; // Minimum 2 vertices for polyline
+        }
+        else if (_entity is Boundary boundary)
+        {
+            return boundary.Vertices.Count > 3; // Minimum 3 vertices for boundary
+        }
+        return false;
     }
 }
 

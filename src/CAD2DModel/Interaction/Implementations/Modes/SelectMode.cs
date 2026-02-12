@@ -1,4 +1,5 @@
 using CAD2DModel.Commands;
+using CAD2DModel.Commands.Implementations;
 using CAD2DModel.Geometry;
 using CAD2DModel.Services;
 using CAD2DModel.Selection;

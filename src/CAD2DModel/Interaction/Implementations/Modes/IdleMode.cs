@@ -1,4 +1,5 @@
 using CAD2DModel.Commands;
+using CAD2DModel.Commands.Implementations;
 using CAD2DModel.Geometry;
 using CAD2DModel.Services;
 using CAD2DModel.Selection;
@@ -123,12 +124,13 @@ public class IdleMode : InteractionModeBase
         switch (key)
         {
             case Key.Delete:
-                // Delete selected entities
-                foreach (var entity in _selectionService.SelectedEntities.ToList())
+                // Delete selected entities using command for undo/redo support
+                if (_selectionService.SelectedEntities.Any())
                 {
-                    _geometryModel.RemoveEntity(entity);
+                    var command = new DeleteMultipleEntitiesCommand(_geometryModel, _selectionService.SelectedEntities.ToList());
+                    _commandManager.Execute(command);
+                    _selectionService.ClearSelection();
                 }
-                _selectionService.ClearSelection();
                 break;
                 
             case Key.Escape:
@@ -235,10 +237,8 @@ public class IdleMode : InteractionModeBase
             {
                 Text = $"Delete ({_selectionService.SelectedEntities.Count} entities)",
                 Action = () => {
-                    foreach (var entity in _selectionService.SelectedEntities.ToList())
-                    {
-                        _geometryModel.RemoveEntity(entity);
-                    }
+                    var command = new DeleteMultipleEntitiesCommand(_geometryModel, _selectionService.SelectedEntities.ToList());
+                    _commandManager.Execute(command);
                     _selectionService.ClearSelection();
                 }
             });
