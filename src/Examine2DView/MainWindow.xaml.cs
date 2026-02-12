@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     public System.Windows.Input.ICommand SelectModeCommand { get; }
     public System.Windows.Input.ICommand AddBoundaryModeCommand { get; }
     public System.Windows.Input.ICommand AddPolylineModeCommand { get; }
+    public System.Windows.Input.ICommand MoveVertexModeCommand { get; }
     
     // Zoom commands
     public System.Windows.Input.ICommand ZoomInCommand { get; }
@@ -38,6 +39,7 @@ public partial class MainWindow : Window
         SelectModeCommand = new RelayCommand(EnterSelectMode);
         AddBoundaryModeCommand = new RelayCommand(EnterAddBoundaryMode);
         AddPolylineModeCommand = new RelayCommand(EnterAddPolylineMode);
+        MoveVertexModeCommand = new RelayCommand(EnterMoveVertexMode);
         
         // Initialize zoom commands
         ZoomInCommand = new RelayCommand(ZoomIn);
@@ -59,7 +61,18 @@ public partial class MainWindow : Window
     
     private void EnterSelectMode()
     {
-        _modeManager?.ReturnToIdle();
+        if (_modeManager == null || _serviceProvider == null)
+            return;
+        
+        var commandManager = _serviceProvider.GetService<ICommandManager>();
+        var selectionService = _serviceProvider.GetService<ISelectionService>();
+        var geometryModel = _serviceProvider.GetService<IGeometryModel>();
+        
+        if (commandManager != null && selectionService != null && geometryModel != null)
+        {
+            var mode = new SelectMode(_modeManager, commandManager, selectionService, geometryModel);
+            _modeManager.EnterMode(mode);
+        }
     }
     
     private void EnterAddBoundaryMode()
@@ -83,6 +96,23 @@ public partial class MainWindow : Window
         // TODO: Implement AddPolylineMode when ready
         System.Windows.MessageBox.Show("Add Polyline mode coming soon!", "Not Implemented", 
             MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+    
+    private void EnterMoveVertexMode()
+    {
+        if (_modeManager == null || _serviceProvider == null)
+            return;
+        
+        var commandManager = _serviceProvider.GetService<ICommandManager>();
+        var selectionService = _serviceProvider.GetService<ISelectionService>();
+        var snapService = _serviceProvider.GetService<ISnapService>();
+        var geometryModel = _serviceProvider.GetService<IGeometryModel>();
+        
+        if (commandManager != null && selectionService != null && snapService != null && geometryModel != null)
+        {
+            var mode = new MoveVertexMode(_modeManager, commandManager, selectionService, snapService, geometryModel);
+            _modeManager.EnterMode(mode);
+        }
     }
     
     private void ZoomIn()
@@ -160,6 +190,13 @@ public partial class MainWindow : Window
             // Set the camera on the mode manager so modes can access it
             _modeManager.Camera = CanvasControl.Camera;
             CanvasControl.ModeManager = _modeManager;
+            
+            // Set selection service for rendering
+            var selectionService = _serviceProvider.GetService<ISelectionService>();
+            if (selectionService != null)
+            {
+                CanvasControl.SelectionService = selectionService;
+            }
             
             // Connect status bar to canvas status updates
             CanvasControl.StatusTextChanged += (s, statusText) =>

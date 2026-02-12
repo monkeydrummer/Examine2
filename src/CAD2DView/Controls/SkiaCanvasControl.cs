@@ -5,6 +5,7 @@ using System.Windows.Input;
 using CAD2DModel.Camera;
 using CAD2DModel.Geometry;
 using CAD2DModel.Interaction;
+using CAD2DModel.Services;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using SkiaSharp.Views.WPF;
@@ -22,6 +23,7 @@ public class SkiaCanvasControl : UserControl
     private bool _isPanning;
     private bool _isGridVisible = true;
     private IModeManager? _modeManager;
+    private ISelectionService? _selectionService;
     
     // Entities to render
     public ObservableCollection<Polyline> Polylines { get; } = new();
@@ -87,6 +89,30 @@ public class SkiaCanvasControl : UserControl
                 UpdateStatusText();
             }
         }
+    }
+    
+    public ISelectionService? SelectionService
+    {
+        get => _selectionService;
+        set
+        {
+            if (_selectionService != null)
+            {
+                _selectionService.SelectionChanged -= OnSelectionChanged;
+            }
+            
+            _selectionService = value;
+            
+            if (_selectionService != null)
+            {
+                _selectionService.SelectionChanged += OnSelectionChanged;
+            }
+        }
+    }
+    
+    private void OnSelectionChanged(object? sender, EventArgs e)
+    {
+        InvalidateVisual(); // Redraw to show selection highlights
     }
     
     public Camera2D Camera

@@ -66,8 +66,8 @@ public class MoveVertexMode : InteractionModeBase
     {
         if (button == MouseButton.Left)
         {
-            // Find vertex near click point
-            const double tolerance = 0.5;
+            // Find vertex near click point with camera-aware tolerance
+            double tolerance = _camera != null ? 8.0 * _camera.Scale : 0.5; // 8 pixels
             
             foreach (var entity in _geometryModel.Entities)
             {
@@ -78,6 +78,21 @@ public class MoveVertexMode : InteractionModeBase
                         if (worldPoint.DistanceTo(vertex.Location) <= tolerance)
                         {
                             _targetPolyline = polyline;
+                            _targetVertex = vertex;
+                            _originalLocation = vertex.Location;
+                            _isDragging = true;
+                            State = ModeState.Active;
+                            return;
+                        }
+                    }
+                }
+                else if (entity is Boundary boundary)
+                {
+                    foreach (var vertex in boundary.Vertices)
+                    {
+                        if (worldPoint.DistanceTo(vertex.Location) <= tolerance)
+                        {
+                            _targetPolyline = null;
                             _targetVertex = vertex;
                             _originalLocation = vertex.Location;
                             _isDragging = true;
