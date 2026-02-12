@@ -54,6 +54,11 @@ public interface IInteractionMode
     ModeState CurrentState { get; }
     
     /// <summary>
+    /// Current substate of the mode (for fine-grained state management)
+    /// </summary>
+    ModeSubState CurrentSubState { get; }
+    
+    /// <summary>
     /// Called when entering this mode
     /// </summary>
     void OnEnter(ModeContext context);
@@ -121,11 +126,15 @@ public class ModeStateChangedEventArgs : EventArgs
 {
     public ModeState OldState { get; }
     public ModeState NewState { get; }
+    public ModeSubState OldSubState { get; }
+    public ModeSubState NewSubState { get; }
     
-    public ModeStateChangedEventArgs(ModeState oldState, ModeState newState)
+    public ModeStateChangedEventArgs(ModeState oldState, ModeState newState, ModeSubState oldSubState, ModeSubState newSubState)
     {
         OldState = oldState;
         NewState = newState;
+        OldSubState = oldSubState;
+        NewSubState = newSubState;
     }
 }
 

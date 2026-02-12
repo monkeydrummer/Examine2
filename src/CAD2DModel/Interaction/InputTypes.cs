@@ -78,5 +78,6 @@ public enum SelectionFilter
     Polylines = 1 << 0,
     Boundaries = 1 << 1,
     Vertices = 1 << 2,
+    Segments = 1 << 3,
     All = Polylines | Boundaries | Vertices
 }

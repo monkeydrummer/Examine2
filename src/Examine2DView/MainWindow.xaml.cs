@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     public System.Windows.Input.ICommand AddBoundaryModeCommand { get; }
     public System.Windows.Input.ICommand AddPolylineModeCommand { get; }
     public System.Windows.Input.ICommand MoveVertexModeCommand { get; }
+    public System.Windows.Input.ICommand MoveBoundaryModeCommand { get; }
     
     // Zoom commands
     public System.Windows.Input.ICommand ZoomInCommand { get; }
@@ -40,6 +41,7 @@ public partial class MainWindow : Window
         AddBoundaryModeCommand = new RelayCommand(EnterAddBoundaryMode);
         AddPolylineModeCommand = new RelayCommand(EnterAddPolylineMode);
         MoveVertexModeCommand = new RelayCommand(EnterMoveVertexMode);
+        MoveBoundaryModeCommand = new RelayCommand(EnterMoveBoundaryMode);
         
         // Initialize zoom commands
         ZoomInCommand = new RelayCommand(ZoomIn);
@@ -122,6 +124,20 @@ public partial class MainWindow : Window
             var mode = new MoveVertexMode(_modeManager, commandManager, selectionService, snapService, geometryModel);
             _modeManager.EnterMode(mode);
         }
+    }
+    
+    private void EnterMoveBoundaryMode()
+    {
+        if (_modeManager == null || _serviceProvider == null)
+            return;
+        
+        // TODO: Implement MoveBoundaryMode
+        // For now, just show a message
+        MessageBox.Show(
+            "Move Boundary mode is not yet implemented. This will allow you to move entire boundaries by dragging them.",
+            "Not Implemented",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
     
     private void ZoomIn()
@@ -208,7 +224,9 @@ public partial class MainWindow : Window
                 // Subscribe to selection changes for view updates and status bar
                 selectionService.SelectionChanged += OnSelectionCountChanged;
                 selectionService.VertexSelectionChanged += OnSelectionCountChanged;
+                selectionService.SegmentSelectionChanged += OnSelectionCountChanged;
                 selectionService.VertexSelectionChanged += (s, e) => CanvasControl.InvalidateVisual();
+                selectionService.SegmentSelectionChanged += (s, e) => CanvasControl.InvalidateVisual();
             }
             
             // Connect status bar to canvas status updates
@@ -406,8 +424,9 @@ public partial class MainWindow : Window
         
         int entityCount = selectionService.SelectedEntities.Count;
         int vertexCount = selectionService.SelectedVertices.Count;
+        int segmentCount = selectionService.SelectedSegments.Count;
         
-        if (entityCount == 0 && vertexCount == 0)
+        if (entityCount == 0 && vertexCount == 0 && segmentCount == 0)
         {
             SelectionCountText.Text = "";
             SelectionCountSeparator.Visibility = System.Windows.Visibility.Collapsed;
@@ -430,6 +449,11 @@ public partial class MainWindow : Window
             if (vertexCount > 0)
             {
                 parts.Add($"{vertexCount} {(vertexCount == 1 ? "vertex" : "vertices")}");
+            }
+            
+            if (segmentCount > 0)
+            {
+                parts.Add($"{segmentCount} {(segmentCount == 1 ? "segment" : "segments")}");
             }
             
             SelectionCountText.Text = $"Selected: {string.Join(", ", parts)}";

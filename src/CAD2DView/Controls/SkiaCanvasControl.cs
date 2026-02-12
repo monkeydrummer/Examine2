@@ -512,6 +512,18 @@ public class SkiaCanvasControl : UserControl
     
     private void OnModeChanged(object? sender, ModeChangedEventArgs e)
     {
+        // Unsubscribe from old mode
+        if (e.OldMode != null)
+        {
+            e.OldMode.StateChanged -= OnModeStateChanged;
+        }
+        
+        // Subscribe to new mode
+        if (e.NewMode != null)
+        {
+            e.NewMode.StateChanged += OnModeStateChanged;
+        }
+        
         UpdateCursor();
         UpdateStatusText();
         InvalidateVisual();
@@ -520,6 +532,7 @@ public class SkiaCanvasControl : UserControl
     private void OnModeStateChanged(object? sender, ModeStateChangedEventArgs e)
     {
         UpdateStatusText();
+        UpdateCursor(); // Also update cursor when state/substate changes
         InvalidateVisual();
     }
     

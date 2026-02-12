@@ -71,6 +71,9 @@
                 <MenuItem Header="Create _Boundary" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddBoundaryModeCommand}"/>
                 <MenuItem Header="Create _Polyline" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddPolylineModeCommand}"/>
                 <Separator/>
+                <MenuItem Header="_Move Vertex" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=MoveVertexModeCommand}"/>
+                <MenuItem Header="Move _Boundary" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=MoveBoundaryModeCommand}"/>
+                <Separator/>
                 <MenuItem Header="Import _DXF..."/>
                 <MenuItem Header="Export D_XF..."/>
             </MenuItem>
@@ -108,6 +111,11 @@
                         Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddBoundaryModeCommand}"/>
                 <Button Content="Polyline" ToolTip="Create Polyline" 
                         Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddPolylineModeCommand}"/>
+                <Separator/>
+                <Button Content="Move Vertex" ToolTip="Move Vertex" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=MoveVertexModeCommand}"/>
+                <Button Content="Move Boundary" ToolTip="Move Boundary" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=MoveBoundaryModeCommand}"/>
                 <Separator/>
                 <Button Content="Query Point" ToolTip="Add Query Point"/>
                 <Button Content="Query Line" ToolTip="Add Query Polyline"/>

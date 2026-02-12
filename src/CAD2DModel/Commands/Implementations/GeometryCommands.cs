@@ -1,5 +1,6 @@
 using CAD2DModel.Geometry;
 using CAD2DModel.Services;
+using System.Collections.Generic;
 
 namespace CAD2DModel.Commands.Implementations;
 
@@ -423,5 +424,166 @@ public class PropertyChangeCommand<T> : CommandBase
     public override void Undo()
     {
         _setter(_oldValue);
+    }
+}
+
+/// <summary>
+/// Command to trim a polyline or boundary at intersection points
+/// </summary>
+public class TrimCommand : CommandBase
+{
+    private readonly IGeometryModel _model;
+    private readonly IEntity _entityToTrim;
+    private readonly IEntity _originalEntity;
+    private readonly List<Point2D> _trimPoints;
+    private readonly IEntity? _resultEntity;
+    private readonly bool _wasRemoved;
+
+    public TrimCommand(
+        IGeometryModel model,
+        IEntity entityToTrim,
+        List<Point2D> trimPoints,
+        IEntity? resultEntity = null)
+        : base($"Trim {GetEntityTypeName(entityToTrim)}")
+    {
+        _model = model ?? throw new ArgumentNullException(nameof(model));
+        _entityToTrim = entityToTrim ?? throw new ArgumentNullException(nameof(entityToTrim));
+        _trimPoints = new List<Point2D>(trimPoints);
+        _resultEntity = resultEntity;
+        
+        // Store original entity for undo
+        if (entityToTrim is Polyline p)
+        {
+            _originalEntity = new Polyline(p.Vertices.Select(v => v.Location));
+        }
+        else if (entityToTrim is Boundary b)
+        {
+            _originalEntity = new Boundary(b.Vertices.Select(v => v.Location));
+        }
+        else
+        {
+            throw new ArgumentException("Unsupported entity type");
+        }
+        
+        _wasRemoved = resultEntity == null;
+    }
+
+    public override void Execute()
+    {
+        if (_wasRemoved)
+        {
+            // Entity was completely trimmed away
+            _model.Entities.Remove(_entityToTrim);
+        }
+        else if (_resultEntity != null)
+        {
+            // Replace with trimmed entity
+            int index = _model.Entities.IndexOf(_entityToTrim);
+            if (index >= 0)
+            {
+                _model.Entities.RemoveAt(index);
+                _model.Entities.Insert(index, _resultEntity);
+            }
+        }
+    }
+
+    public override void Undo()
+    {
+        if (_wasRemoved)
+        {
+            // Restore removed entity
+            _model.Entities.Add(_originalEntity);
+        }
+        else if (_resultEntity != null)
+        {
+            // Restore original entity
+            int index = _model.Entities.IndexOf(_resultEntity);
+            if (index >= 0)
+            {
+                _model.Entities.RemoveAt(index);
+                _model.Entities.Insert(index, _originalEntity);
+            }
+        }
+    }
+
+    private static string GetEntityTypeName(IEntity entity)
+    {
+        return entity switch
+        {
+            Boundary => "boundary",
+            Polyline => "polyline",
+            _ => "entity"
+        };
+    }
+}
+
+/// <summary>
+/// Command to extend a polyline to meet a boundary entity
+/// </summary>
+public class ExtendCommand : CommandBase
+{
+    private readonly IGeometryModel _model;
+    private readonly IEntity _entityToExtend;
+    private readonly IEntity _originalEntity;
+    private readonly Point2D _extensionPoint;
+    private readonly IEntity _extendedEntity;
+
+    public ExtendCommand(
+        IGeometryModel model,
+        IEntity entityToExtend,
+        Point2D extensionPoint,
+        IEntity extendedEntity)
+        : base($"Extend {GetEntityTypeName(entityToExtend)}")
+    {
+        _model = model ?? throw new ArgumentNullException(nameof(model));
+        _entityToExtend = entityToExtend ?? throw new ArgumentNullException(nameof(entityToExtend));
+        _extensionPoint = extensionPoint;
+        _extendedEntity = extendedEntity ?? throw new ArgumentNullException(nameof(extendedEntity));
+        
+        // Store original entity for undo
+        if (entityToExtend is Polyline p)
+        {
+            _originalEntity = new Polyline(p.Vertices.Select(v => v.Location));
+        }
+        else if (entityToExtend is Boundary b)
+        {
+            _originalEntity = new Boundary(b.Vertices.Select(v => v.Location));
+        }
+        else
+        {
+            throw new ArgumentException("Unsupported entity type");
+        }
+    }
+
+    public override void Execute()
+    {
+        // Replace with extended entity
+        int index = _model.Entities.IndexOf(_entityToExtend);
+        if (index >= 0)
+        {
+            _model.Entities.RemoveAt(index);
+            _model.Entities.Insert(index, _extendedEntity);
+        }
+    }
+
+    public override void Undo()
+    {
+        // Restore original entity
+        int index = _model.Entities.IndexOf(_extendedEntity);
+        if (index >= 0)
+        {
+            _model.Entities.RemoveAt(index);
+            _model.Entities.Insert(index, _originalEntity);
+        }
+    }
+
+    private static string GetEntityTypeName(IEntity entity)
+    {
+        return entity switch
+        {
+            Boundary => "boundary",
+            Polyline => "polyline",
+            _ => "entity"
+        };
     }
 }

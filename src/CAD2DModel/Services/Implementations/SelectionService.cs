@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CAD2DModel.Geometry;
 using CAD2DModel.Selection;
+using System.Linq;
 
 namespace CAD2DModel.Services.Implementations;
 
@@ -11,6 +12,7 @@ public class SelectionService : ISelectionService
 {
     private readonly ObservableCollection<IEntity> _selectedEntities = new();
     private readonly ObservableCollection<VertexHandle> _selectedVertices = new();
+    private readonly ObservableCollection<SegmentHandle> _selectedSegments = new();
     private readonly IGeometryEngine _geometryEngine;
     
     public SelectionService(IGeometryEngine geometryEngine)
@@ -20,9 +22,11 @@ public class SelectionService : ISelectionService
     
     public IReadOnlyCollection<IEntity> SelectedEntities => _selectedEntities;
     public IReadOnlyCollection<VertexHandle> SelectedVertices => _selectedVertices;
+    public IReadOnlyCollection<SegmentHandle> SelectedSegments => _selectedSegments;
     
     public event EventHandler? SelectionChanged;
     public event EventHandler? VertexSelectionChanged;
+    public event EventHandler? SegmentSelectionChanged;
     
     public IEntity? HitTest(Point2D point, double tolerance, IEnumerable<IEntity> entities)
     {
@@ -357,10 +361,17 @@ public class SelectionService : ISelectionService
             changed = true;
         }
         
+        if (_selectedSegments.Count > 0)
+        {
+            _selectedSegments.Clear();
+            changed = true;
+        }
+        
         if (changed)
         {
             OnSelectionChanged();
             OnVertexSelectionChanged();
+            OnSegmentSelectionChanged();
         }
     }
     
@@ -376,6 +387,164 @@ public class SelectionService : ISelectionService
         else
         {
             SelectVertex(vertex, addToSelection: true);
+        }
+    }
+    
+    public SegmentHandle? HitTestSegment(Point2D point, double tolerance, IEnumerable<IEntity> entities)
+    {
+        foreach (var entity in entities)
+        {
+            if (!entity.IsVisible)
+                continue;
+            
+            if (entity is Polyline polyline)
+            {
+                var vertices = polyline.Vertices.ToList();
+                for (int i = 0; i < vertices.Count - 1; i++)
+                {
+                    var distance = IntersectionCalculator.DistanceToSegment(
+                        point, vertices[i].Location, vertices[i + 1].Location, out _);
+                    
+                    if (distance <= tolerance)
+                    {
+                        return new SegmentHandle(entity, i);
+                    }
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                var vertices = boundary.Vertices.ToList();
+                for (int i = 0; i < vertices.Count; i++)
+                {
+                    int nextI = (i + 1) % vertices.Count;
+                    var distance = IntersectionCalculator.DistanceToSegment(
+                        point, vertices[i].Location, vertices[nextI].Location, out _);
+                    
+                    if (distance <= tolerance)
+                    {
+                        return new SegmentHandle(entity, i);
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    public IEnumerable<SegmentHandle> SelectSegmentsInBox(Rect2D box, IEnumerable<IEntity> entities)
+    {
+        var segments = new List<SegmentHandle>();
+        
+        foreach (var entity in entities)
+        {
+            if (!entity.IsVisible)
+                continue;
+            
+            if (entity is Polyline polyline)
+            {
+                var vertices = polyline.Vertices.ToList();
+                for (int i = 0; i < vertices.Count - 1; i++)
+                {
+                    var segment = new LineSegment(vertices[i].Location, vertices[i + 1].Location);
+                    if (SegmentIntersectsBox(segment, box))
+                    {
+                        segments.Add(new SegmentHandle(entity, i));
+                    }
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                var vertices = boundary.Vertices.ToList();
+                for (int i = 0; i < vertices.Count; i++)
+                {
+                    int nextI = (i + 1) % vertices.Count;
+                    var segment = new LineSegment(vertices[i].Location, vertices[nextI].Location);
+                    if (SegmentIntersectsBox(segment, box))
+                    {
+                        segments.Add(new SegmentHandle(entity, i));
+                    }
+                }
+            }
+        }
+        
+        return segments;
+    }
+    
+    public void SelectSegment(SegmentHandle segment, bool addToSelection = false)
+    {
+        if (segment == null)
+            throw new ArgumentNullException(nameof(segment));
+        
+        if (!addToSelection)
+        {
+            _selectedSegments.Clear();
+        }
+        
+        if (!_selectedSegments.Contains(segment))
+        {
+            _selectedSegments.Add(segment);
+            OnSegmentSelectionChanged();
+        }
+    }
+    
+    public void SelectSegments(IEnumerable<SegmentHandle> segments, bool addToSelection = false)
+    {
+        if (segments == null)
+            throw new ArgumentNullException(nameof(segments));
+        
+        if (!addToSelection)
+        {
+            _selectedSegments.Clear();
+        }
+        
+        bool changed = false;
+        foreach (var segment in segments)
+        {
+            if (!_selectedSegments.Contains(segment))
+            {
+                _selectedSegments.Add(segment);
+                changed = true;
+            }
+        }
+        
+        if (changed)
+        {
+            OnSegmentSelectionChanged();
+        }
+    }
+    
+    public void DeselectSegment(SegmentHandle segment)
+    {
+        if (segment == null)
+            throw new ArgumentNullException(nameof(segment));
+        
+        if (_selectedSegments.Remove(segment))
+        {
+            OnSegmentSelectionChanged();
+        }
+    }
+    
+    public void ClearSegmentSelection()
+    {
+        if (_selectedSegments.Count == 0)
+            return;
+        
+        _selectedSegments.Clear();
+        OnSegmentSelectionChanged();
+    }
+    
+    public void ToggleSegmentSelection(SegmentHandle segment)
+    {
+        if (segment == null)
+            throw new ArgumentNullException(nameof(segment));
+        
+        if (_selectedSegments.Contains(segment))
+        {
+            DeselectSegment(segment);
+        }
+        else
+        {
+            SelectSegment(segment, addToSelection: true);
         }
     }
     
@@ -417,5 +586,10 @@ public class SelectionService : ISelectionService
     private void OnVertexSelectionChanged()
     {
         VertexSelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+    
+    private void OnSegmentSelectionChanged()
+    {
+        SegmentSelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 }

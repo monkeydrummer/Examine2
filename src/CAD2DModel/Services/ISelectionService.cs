@@ -19,6 +19,11 @@ public interface ISelectionService
     IReadOnlyCollection<VertexHandle> SelectedVertices { get; }
     
     /// <summary>
+    /// Currently selected segments
+    /// </summary>
+    IReadOnlyCollection<SegmentHandle> SelectedSegments { get; }
+    
+    /// <summary>
     /// Hit test to find entity at point
     /// </summary>
     IEntity? HitTest(Point2D point, double tolerance, IEnumerable<IEntity> entities);
@@ -29,6 +34,11 @@ public interface ISelectionService
     VertexHandle? HitTestVertex(Point2D point, double tolerance, IEnumerable<IEntity> entities);
     
     /// <summary>
+    /// Hit test to find segment at point
+    /// </summary>
+    SegmentHandle? HitTestSegment(Point2D point, double tolerance, IEnumerable<IEntity> entities);
+    
+    /// <summary>
     /// Select entities within a rectangular region
     /// </summary>
     IEnumerable<IEntity> SelectInBox(Rect2D box, IEnumerable<IEntity> entities, bool crossing = false);
@@ -37,6 +47,11 @@ public interface ISelectionService
     /// Select vertices within a rectangular region
     /// </summary>
     IEnumerable<VertexHandle> SelectVerticesInBox(Rect2D box, IEnumerable<IEntity> entities);
+    
+    /// <summary>
+    /// Select segments within a rectangular region
+    /// </summary>
+    IEnumerable<SegmentHandle> SelectSegmentsInBox(Rect2D box, IEnumerable<IEntity> entities);
     
     /// <summary>
     /// Select a single entity
@@ -59,6 +74,16 @@ public interface ISelectionService
     void SelectVertices(IEnumerable<VertexHandle> vertices, bool addToSelection = false);
     
     /// <summary>
+    /// Select a single segment
+    /// </summary>
+    void SelectSegment(SegmentHandle segment, bool addToSelection = false);
+    
+    /// <summary>
+    /// Select multiple segments
+    /// </summary>
+    void SelectSegments(IEnumerable<SegmentHandle> segments, bool addToSelection = false);
+    
+    /// <summary>
     /// Deselect an entity
     /// </summary>
     void Deselect(IEntity entity);
@@ -69,6 +94,11 @@ public interface ISelectionService
     void DeselectVertex(VertexHandle vertex);
     
     /// <summary>
+    /// Deselect a segment
+    /// </summary>
+    void DeselectSegment(SegmentHandle segment);
+    
+    /// <summary>
     /// Clear all entity selections
     /// </summary>
     void ClearSelection();
@@ -77,6 +107,11 @@ public interface ISelectionService
     /// Clear all vertex selections
     /// </summary>
     void ClearVertexSelection();
+    
+    /// <summary>
+    /// Clear all segment selections
+    /// </summary>
+    void ClearSegmentSelection();
     
     /// <summary>
     /// Clear both entity and vertex selections
@@ -94,6 +129,11 @@ public interface ISelectionService
     void ToggleVertexSelection(VertexHandle vertex);
     
     /// <summary>
+    /// Toggle selection state of a segment
+    /// </summary>
+    void ToggleSegmentSelection(SegmentHandle segment);
+    
+    /// <summary>
     /// Event raised when entity selection changes
     /// </summary>
     event EventHandler SelectionChanged;
@@ -102,4 +142,9 @@ public interface ISelectionService
     /// Event raised when vertex selection changes
     /// </summary>
     event EventHandler VertexSelectionChanged;
+    
+    /// <summary>
+    /// Event raised when segment selection changes
+    /// </summary>
+    event EventHandler SegmentSelectionChanged;
 }

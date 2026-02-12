@@ -9,15 +9,23 @@ public abstract class InteractionModeBase : IInteractionMode
 {
     protected ModeContext? Context;
     protected ModeState State;
+    protected ModeSubState SubState;
     
     public abstract string Name { get; }
     public abstract string StatusPrompt { get; }
     public abstract Cursor Cursor { get; }
     
     public ModeState CurrentState => State;
+    public ModeSubState CurrentSubState => SubState;
     
     public event EventHandler<ModeStateChangedEventArgs>? StateChanged;
     public event EventHandler? ModeCompleted;
+    
+    protected InteractionModeBase()
+    {
+        State = ModeState.WaitingForInput;
+        SubState = DefaultSubState.Instance;
+    }
     
     public virtual void OnEnter(ModeContext context)
     {
@@ -71,7 +79,17 @@ public abstract class InteractionModeBase : IInteractionMode
     
     protected virtual void OnStateChanged(ModeState oldState, ModeState newState)
     {
-        StateChanged?.Invoke(this, new ModeStateChangedEventArgs(oldState, newState));
+        StateChanged?.Invoke(this, new ModeStateChangedEventArgs(oldState, newState, SubState, SubState));
+    }
+    
+    protected virtual void OnSubStateChanged(ModeSubState oldSubState, ModeSubState newSubState)
+    {
+        StateChanged?.Invoke(this, new ModeStateChangedEventArgs(State, State, oldSubState, newSubState));
+    }
+    
+    protected virtual void OnStateAndSubStateChanged(ModeState oldState, ModeState newState, ModeSubState oldSubState, ModeSubState newSubState)
+    {
+        StateChanged?.Invoke(this, new ModeStateChangedEventArgs(oldState, newState, oldSubState, newSubState));
     }
     
     protected virtual void CompleteMod()

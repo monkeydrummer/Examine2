@@ -19,6 +19,7 @@ public class SelectMode : InteractionModeBase
     private Point2D? _boxStart;
     private Point2D _currentMousePosition;
     private Camera.Camera2D? _camera;
+    private ModifierKeys _lastModifiers;
     
     /// <summary>
     /// Filter for what types of entities can be selected
@@ -43,6 +44,7 @@ public class SelectMode : InteractionModeBase
     }
     
     public override string Name => "Select";
+    
     public override Cursor Cursor => Interaction.Cursor.PickBox;
     
     public override string StatusPrompt
@@ -52,19 +54,34 @@ public class SelectMode : InteractionModeBase
             if (_boxStart.HasValue)
                 return "Release to complete box selection, Esc to cancel";
             
-            var selectionCount = Filter == SelectionFilter.Vertices 
-                ? _selectionService.SelectedVertices.Count 
-                : _selectionService.SelectedEntities.Count;
+            int selectionCount = 0;
+            string itemType = "";
+            
+            if (Filter == SelectionFilter.Vertices)
+            {
+                selectionCount = _selectionService.SelectedVertices.Count;
+                itemType = selectionCount == 1 ? "vertex" : "vertices";
+            }
+            else if (Filter == SelectionFilter.Segments)
+            {
+                selectionCount = _selectionService.SelectedSegments.Count;
+                itemType = selectionCount == 1 ? "segment" : "segments";
+            }
+            else
+            {
+                selectionCount = _selectionService.SelectedEntities.Count;
+                itemType = selectionCount == 1 ? "entity" : "entities";
+            }
             
             if (selectionCount > 0)
             {
-                var itemType = Filter == SelectionFilter.Vertices ? "vertices" : "entities";
                 return $"{selectionCount} {itemType} selected - Click to select, drag for box selection, Ctrl+click to add/remove, Del to delete";
             }
             else
             {
-                var itemType = Filter == SelectionFilter.Vertices ? "vertex" : "entity";
-                return $"Click to select {itemType}, drag for box selection, Ctrl+click to add to selection";
+                var selectWhat = Filter == SelectionFilter.Vertices ? "vertex" : 
+                                Filter == SelectionFilter.Segments ? "segment" : "entity";
+                return $"Click to select {selectWhat}, drag for box selection, Ctrl+click to add to selection";
             }
         }
     }
@@ -96,6 +113,8 @@ public class SelectMode : InteractionModeBase
     
     public override void OnMouseDown(Point2D worldPoint, MouseButton button, ModifierKeys modifiers)
     {
+        _lastModifiers = modifiers; // Capture modifiers
+        
         if (button == MouseButton.Left)
         {
             // Start box selection or single click selection
@@ -123,8 +142,9 @@ public class SelectMode : InteractionModeBase
             double distance = startPoint.DistanceTo(endPoint);
             double clickTolerance = _camera != null ? 5.0 * _camera.Scale : 5.0; // 5 pixels
             
-            // TODO: Get modifiers from keyboard state
-            bool addToSelection = false; // For now, we'll handle this via Ctrl+click in OnMouseDown
+            // Get current modifier state from the last mouse move or down event
+            // For now we'll use a stored value - need to capture modifiers in OnMouseDown
+            bool addToSelection = _lastModifiers.HasFlag(ModifierKeys.Control);
             
             if (distance < clickTolerance)
             {
@@ -154,7 +174,7 @@ public class SelectMode : InteractionModeBase
                     _boxStart = null;
                     State = ModeState.WaitingForInput;
                 }
-                else if (_selectionService.SelectedEntities.Count > 0 || _selectionService.SelectedVertices.Count > 0)
+                else if (_selectionService.SelectedEntities.Count > 0 || _selectionService.SelectedVertices.Count > 0 || _selectionService.SelectedSegments.Count > 0)
                 {
                     // Clear all selections
                     _selectionService.ClearAllSelections();
@@ -176,7 +196,13 @@ public class SelectMode : InteractionModeBase
                 
             case Key.Delete:
                 // Delete selected entities or vertices
-                if (Filter == SelectionFilter.Vertices && _selectionService.SelectedVertices.Count > 0)
+                if (Filter == SelectionFilter.Segments && _selectionService.SelectedSegments.Count > 0)
+                {
+                    // Can't delete segments directly - would need to split entities
+                    // For now, just clear the selection
+                    _selectionService.ClearSegmentSelection();
+                }
+                else if (Filter == SelectionFilter.Vertices && _selectionService.SelectedVertices.Count > 0)
                 {
                     DeleteSelectedVertices();
                 }
@@ -242,6 +268,12 @@ public class SelectMode : InteractionModeBase
         {
             DrawVertexHandle(context, vertex.Location, true);
         }
+        
+        // Draw selected segments
+        foreach (var segment in _selectionService.SelectedSegments)
+        {
+            context.DrawLine(segment.StartPoint, segment.EndPoint, 0, 255, 255, 4, dashed: false); // Cyan highlight
+        }
     }
     
     private void PerformClickSelection(Point2D point, bool addToSelection)
@@ -252,7 +284,29 @@ public class SelectMode : InteractionModeBase
         // Convert pixel tolerance to world units
         double worldTolerance = 5.0 * _camera.Scale; // 5 pixels
         
-        if (Filter == SelectionFilter.Vertices)
+        if (Filter == SelectionFilter.Segments)
+        {
+            // Segment selection
+            var hitSegment = _selectionService.HitTestSegment(point, worldTolerance, _geometryModel.Entities);
+            
+            if (hitSegment != null)
+            {
+                if (addToSelection)
+                {
+                    _selectionService.ToggleSegmentSelection(hitSegment);
+                }
+                else
+                {
+                    _selectionService.SelectSegment(hitSegment);
+                }
+                OnStateChanged(State, State); // Refresh status prompt
+            }
+            else if (!addToSelection)
+            {
+                _selectionService.ClearSegmentSelection();
+            }
+        }
+        else if (Filter == SelectionFilter.Vertices)
         {
             // Vertex selection
             var hitVertex = _selectionService.HitTestVertex(point, worldTolerance, _geometryModel.Entities);
@@ -307,7 +361,22 @@ public class SelectMode : InteractionModeBase
         
         var selectionBox = new Rect2D(minX, minY, maxX - minX, maxY - minY);
         
-        if (Filter == SelectionFilter.Vertices)
+        if (Filter == SelectionFilter.Segments)
+        {
+            // Segment box selection
+            var segmentsInBox = _selectionService.SelectSegmentsInBox(selectionBox, _geometryModel.Entities);
+            
+            if (addToSelection)
+            {
+                _selectionService.SelectSegments(segmentsInBox, addToSelection: true);
+            }
+            else
+            {
+                _selectionService.SelectSegments(segmentsInBox);
+            }
+            OnStateChanged(State, State); // Refresh status prompt
+        }
+        else if (Filter == SelectionFilter.Vertices)
         {
             // Vertex box selection
             var verticesInBox = _selectionService.SelectVerticesInBox(selectionBox, _geometryModel.Entities);
@@ -523,6 +592,18 @@ public class SelectMode : InteractionModeBase
             items.Add(new SelectModeContextMenuItem { IsSeparator = true });
         }
         
+        // Selection actions for segments
+        if (_selectionService.SelectedSegments.Count > 0)
+        {
+            items.Add(new SelectModeContextMenuItem
+            {
+                Text = "Clear Segment Selection",
+                Action = () => _selectionService.ClearSegmentSelection()
+            });
+            
+            items.Add(new SelectModeContextMenuItem { IsSeparator = true });
+        }
+        
         // Selection filter options
         items.Add(new SelectModeContextMenuItem
         {
@@ -550,6 +631,16 @@ public class SelectMode : InteractionModeBase
             Text = "Filter: Vertices Only",
             Action = () => Filter = SelectionFilter.Vertices,
             IsChecked = Filter == SelectionFilter.Vertices
+        });
+        
+        items.Add(new SelectModeContextMenuItem
+        {
+            Text = "Filter: Segments Only",
+            Action = () => {
+                Filter = SelectionFilter.Segments;
+                OnStateChanged(State, State); // Refresh status prompt
+            },
+            IsChecked = Filter == SelectionFilter.Segments
         });
         
         items.Add(new SelectModeContextMenuItem { IsSeparator = true });

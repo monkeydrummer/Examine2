@@ -36,7 +36,21 @@ public class IdleMode : InteractionModeBase
     
     public override string Name => "Idle";
     public override string StatusPrompt => "Ready";
-    public override Cursor Cursor => Interaction.Cursor.Arrow;
+    
+    public override Cursor Cursor
+    {
+        get
+        {
+            // Show pickbox cursor when there are selections
+            if (_selectionService.SelectedEntities.Count > 0 ||
+                _selectionService.SelectedVertices.Count > 0 ||
+                _selectionService.SelectedSegments.Count > 0)
+            {
+                return Interaction.Cursor.PickBox;
+            }
+            return Interaction.Cursor.Arrow;
+        }
+    }
     
     public override void OnEnter(ModeContext context)
     {
@@ -266,6 +280,47 @@ public class IdleMode : InteractionModeBase
             Action = () => {
                 var mode = new AddPolylineMode(_modeManager, _commandManager, _geometryModel, _snapService);
                 _modeManager.EnterMode(mode);
+            }
+        });
+        
+        items.Add(new ContextMenuItem { IsSeparator = true });
+        
+        items.Add(new ContextMenuItem
+        {
+            Text = "Trim",
+            Action = () => {
+                var mode = new TrimMode(_geometryModel, _commandManager, _selectionService, _modeManager);
+                _modeManager.EnterMode(mode);
+            }
+        });
+        
+        items.Add(new ContextMenuItem
+        {
+            Text = "Extend",
+            Action = () => {
+                var mode = new ExtendMode(_geometryModel, _commandManager, _selectionService, _modeManager);
+                _modeManager.EnterMode(mode);
+            }
+        });
+        
+        items.Add(new ContextMenuItem { IsSeparator = true });
+        
+        items.Add(new ContextMenuItem
+        {
+            Text = "Move Vertex",
+            Action = () => {
+                var mode = new MoveVertexMode(_modeManager, _commandManager, _selectionService, _snapService, _geometryModel);
+                _modeManager.EnterMode(mode);
+            }
+        });
+        
+        items.Add(new ContextMenuItem
+        {
+            Text = "Move Boundary",
+            Action = () => {
+                // TODO: Implement MoveBoundaryMode
+                // var mode = new MoveBoundaryMode(_modeManager, _commandManager, _geometryModel, _selectionService, _snapService);
+                // _modeManager.EnterMode(mode);
             }
         });
         
