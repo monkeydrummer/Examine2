@@ -1,0 +1,43 @@
+Implement comprehensive vertex selection with move and delete operations
+
+**New Infrastructure:**
+- Created VertexHandle class to uniquely identify vertices (entity + index)
+- Extended ISelectionService with vertex selection capabilities:
+  * SelectedVertices collection
+  * HitTestVertex() for vertex picking
+  * SelectVerticesInBox() for box selection
+  * SelectVertex(), DeselectVertex(), ClearVertexSelection()
+  * ToggleVertexSelection()
+  * VertexSelectionChanged event
+
+**SelectMode Enhancements:**
+- Added "Filter: Vertices Only" context menu option
+- Vertex hit testing and selection when filter is active
+- Visual vertex handles (6px squares) drawn for all vertices
+- Selected vertices highlighted in orange
+- Box selection support for vertices
+- Delete vertices operation (maintains minimum vertex count)
+- Dynamic status prompts showing vertex vs entity count
+- Context menu actions for both entity and vertex selections
+
+**Vertex Operations:**
+- Delete selected vertices (Del key)
+  * Maintains minimum 2 vertices for polylines
+  * Maintains minimum 3 vertices for boundaries
+  * Groups deletions by entity for efficiency
+  * Processes indices in descending order to avoid index shifts
+  
+**Visual Feedback:**
+- Vertex handles drawn as 6px blue squares when in vertex mode
+- Selected vertices shown as 6px orange squares
+- Handles scale correctly with camera zoom
+- Clear visual distinction from entity selection
+
+**Integration:**
+- MainWindow subscribes to VertexSelectionChanged events
+- Automatic view updates on vertex selection changes
+- Seamless switching between entity and vertex selection modes
+
+This enables precise vertex-level CAD operations including individual vertex 
+selection, multi-selection via box, visual feedback, and deletion - essential 
+for detailed geometry editing workflows.

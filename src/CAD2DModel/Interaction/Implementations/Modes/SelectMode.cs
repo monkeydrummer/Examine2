@@ -1,6 +1,7 @@
 using CAD2DModel.Commands;
 using CAD2DModel.Geometry;
 using CAD2DModel.Services;
+using CAD2DModel.Selection;
 
 namespace CAD2DModel.Interaction.Implementations.Modes;
 
@@ -23,6 +24,11 @@ public class SelectMode : InteractionModeBase
     /// </summary>
     public SelectionFilter Filter { get; set; } = SelectionFilter.All;
     
+    /// <summary>
+    /// Size of vertex handles in pixels
+    /// </summary>
+    private const double VertexHandleSize = 6.0;
+    
     public SelectMode(
         IModeManager modeManager,
         ICommandManager commandManager,
@@ -44,10 +50,21 @@ public class SelectMode : InteractionModeBase
         {
             if (_boxStart.HasValue)
                 return "Release to complete box selection, Esc to cancel";
-            else if (_selectionService.SelectedEntities.Count > 0)
-                return $"{_selectionService.SelectedEntities.Count} selected - Click to select, drag for box selection, Ctrl+click to add/remove";
+            
+            var selectionCount = Filter == SelectionFilter.Vertices 
+                ? _selectionService.SelectedVertices.Count 
+                : _selectionService.SelectedEntities.Count;
+            
+            if (selectionCount > 0)
+            {
+                var itemType = Filter == SelectionFilter.Vertices ? "vertices" : "entities";
+                return $"{selectionCount} {itemType} selected - Click to select, drag for box selection, Ctrl+click to add/remove, Del to delete";
+            }
             else
-                return "Click to select entity, drag for box selection, Ctrl+click to add to selection";
+            {
+                var itemType = Filter == SelectionFilter.Vertices ? "vertex" : "entity";
+                return $"Click to select {itemType}, drag for box selection, Ctrl+click to add to selection";
+            }
         }
     }
     
@@ -157,8 +174,12 @@ public class SelectMode : InteractionModeBase
                 break;
                 
             case Key.Delete:
-                // Delete selected entities
-                if (_selectionService.SelectedEntities.Count > 0)
+                // Delete selected entities or vertices
+                if (Filter == SelectionFilter.Vertices && _selectionService.SelectedVertices.Count > 0)
+                {
+                    DeleteSelectedVertices();
+                }
+                else if (_selectionService.SelectedEntities.Count > 0)
                 {
                     DeleteSelectedEntities();
                 }
@@ -217,28 +238,48 @@ public class SelectMode : InteractionModeBase
         // Convert pixel tolerance to world units
         double worldTolerance = 5.0 * _camera.Scale; // 5 pixels
         
-        // Filter entities based on selection filter
-        var filteredEntities = FilterEntities(_geometryModel.Entities);
-        
-        var hitEntity = _selectionService.HitTest(point, worldTolerance, filteredEntities);
-        
-        if (hitEntity != null)
+        if (Filter == SelectionFilter.Vertices)
         {
-            if (addToSelection)
+            // Vertex selection
+            var hitVertex = _selectionService.HitTestVertex(point, worldTolerance, _geometryModel.Entities);
+            
+            if (hitVertex != null)
             {
-                // Toggle selection
-                _selectionService.ToggleSelection(hitEntity);
+                if (addToSelection)
+                {
+                    _selectionService.ToggleVertexSelection(hitVertex);
+                }
+                else
+                {
+                    _selectionService.SelectVertex(hitVertex);
+                }
             }
-            else
+            else if (!addToSelection)
             {
-                // Replace selection
-                _selectionService.Select(hitEntity);
+                _selectionService.ClearVertexSelection();
             }
         }
-        else if (!addToSelection)
+        else
         {
-            // Clear selection if clicking empty space without Ctrl
-            _selectionService.ClearSelection();
+            // Entity selection
+            var filteredEntities = FilterEntities(_geometryModel.Entities);
+            var hitEntity = _selectionService.HitTest(point, worldTolerance, filteredEntities);
+            
+            if (hitEntity != null)
+            {
+                if (addToSelection)
+                {
+                    _selectionService.ToggleSelection(hitEntity);
+                }
+                else
+                {
+                    _selectionService.Select(hitEntity);
+                }
+            }
+            else if (!addToSelection)
+            {
+                _selectionService.ClearSelection();
+            }
         }
     }
     
@@ -252,23 +293,39 @@ public class SelectMode : InteractionModeBase
         
         var selectionBox = new Rect2D(minX, minY, maxX - minX, maxY - minY);
         
-        // Determine selection mode: left-to-right = window (entirely inside), right-to-left = crossing
-        bool crossingMode = end.X < start.X;
-        
-        // Filter entities based on selection filter
-        var filteredEntities = FilterEntities(_geometryModel.Entities);
-        
-        var entitiesInBox = _selectionService.SelectInBox(selectionBox, filteredEntities, !crossingMode);
-        
-        if (addToSelection)
+        if (Filter == SelectionFilter.Vertices)
         {
-            // Add to existing selection
-            _selectionService.Select(entitiesInBox, addToSelection: true);
+            // Vertex box selection
+            var verticesInBox = _selectionService.SelectVerticesInBox(selectionBox, _geometryModel.Entities);
+            
+            if (addToSelection)
+            {
+                _selectionService.SelectVertices(verticesInBox, addToSelection: true);
+            }
+            else
+            {
+                _selectionService.SelectVertices(verticesInBox);
+            }
         }
         else
         {
-            // Replace selection
-            _selectionService.Select(entitiesInBox);
+            // Entity box selection
+            // Determine selection mode: left-to-right = window (entirely inside), right-to-left = crossing
+            bool crossingMode = end.X < start.X;
+            
+            // Filter entities based on selection filter
+            var filteredEntities = FilterEntities(_geometryModel.Entities);
+            
+            var entitiesInBox = _selectionService.SelectInBox(selectionBox, filteredEntities, !crossingMode);
+            
+            if (addToSelection)
+            {
+                _selectionService.Select(entitiesInBox, addToSelection: true);
+            }
+            else
+            {
+                _selectionService.Select(entitiesInBox);
+            }
         }
     }
     
@@ -311,23 +368,133 @@ public class SelectMode : InteractionModeBase
         _selectionService.ClearSelection();
     }
     
+    private void DeleteSelectedVertices()
+    {
+        var verticesToDelete = _selectionService.SelectedVertices.ToList();
+        
+        // Group vertices by entity to process them efficiently
+        var verticesByEntity = verticesToDelete
+            .GroupBy(v => v.Entity)
+            .ToList();
+        
+        foreach (var group in verticesByEntity)
+        {
+            var entity = group.Key;
+            // Sort indices in descending order so we can remove from the end first
+            var indices = group.Select(v => v.VertexIndex).OrderByDescending(i => i).ToList();
+            
+            if (entity is Polyline polyline)
+            {
+                foreach (var index in indices)
+                {
+                    if (polyline.Vertices.Count > 2) // Keep at least 2 vertices for a polyline
+                    {
+                        polyline.RemoveVertexAt(index);
+                    }
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                foreach (var index in indices)
+                {
+                    if (boundary.Vertices.Count > 3) // Keep at least 3 vertices for a boundary
+                    {
+                        boundary.RemoveVertexAt(index);
+                    }
+                }
+            }
+        }
+        
+        _selectionService.ClearVertexSelection();
+    }
+    
+    private void DrawVertexHandles(IRenderContext context)
+    {
+        if (_camera == null)
+            return;
+        
+        // Draw vertex handles for all visible entities
+        foreach (var entity in _geometryModel.Entities)
+        {
+            if (!entity.IsVisible)
+                continue;
+            
+            if (entity is Polyline polyline)
+            {
+                foreach (var vertex in polyline.Vertices)
+                {
+                    DrawVertexHandle(context, vertex.Location, false);
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                foreach (var vertex in boundary.Vertices)
+                {
+                    DrawVertexHandle(context, vertex.Location, false);
+                }
+            }
+        }
+    }
+    
+    private void DrawVertexHandle(IRenderContext context, Point2D location, bool isSelected)
+    {
+        if (_camera == null)
+            return;
+        
+        // Calculate handle size in world units
+        double halfSize = (VertexHandleSize / 2.0) * _camera.Scale;
+        
+        byte r = isSelected ? (byte)255 : (byte)100;
+        byte g = isSelected ? (byte)165 : (byte)100;
+        byte b = isSelected ? (byte)0 : (byte)255;
+        
+        // Draw a small square handle
+        var topLeft = new Point2D(location.X - halfSize, location.Y - halfSize);
+        var topRight = new Point2D(location.X + halfSize, location.Y - halfSize);
+        var bottomRight = new Point2D(location.X + halfSize, location.Y + halfSize);
+        var bottomLeft = new Point2D(location.X - halfSize, location.Y + halfSize);
+        
+        context.DrawLine(topLeft, topRight, r, g, b, 1, dashed: false);
+        context.DrawLine(topRight, bottomRight, r, g, b, 1, dashed: false);
+        context.DrawLine(bottomRight, bottomLeft, r, g, b, 1, dashed: false);
+        context.DrawLine(bottomLeft, topLeft, r, g, b, 1, dashed: false);
+    }
+    
     public override IEnumerable<IContextMenuItem> GetContextMenuItems(Point2D worldPoint)
     {
         var items = new List<IContextMenuItem>();
         
-        // Selection actions
+        // Selection actions for entities
         if (_selectionService.SelectedEntities.Count > 0)
         {
             items.Add(new SelectModeContextMenuItem
             {
-                Text = $"Delete ({_selectionService.SelectedEntities.Count} items)",
+                Text = $"Delete ({_selectionService.SelectedEntities.Count} entities)",
                 Action = DeleteSelectedEntities
             });
             
             items.Add(new SelectModeContextMenuItem
             {
-                Text = "Clear Selection",
+                Text = "Clear Entity Selection",
                 Action = () => _selectionService.ClearSelection()
+            });
+            
+            items.Add(new SelectModeContextMenuItem { IsSeparator = true });
+        }
+        
+        // Selection actions for vertices
+        if (_selectionService.SelectedVertices.Count > 0)
+        {
+            items.Add(new SelectModeContextMenuItem
+            {
+                Text = $"Delete ({_selectionService.SelectedVertices.Count} vertices)",
+                Action = DeleteSelectedVertices
+            });
+            
+            items.Add(new SelectModeContextMenuItem
+            {
+                Text = "Clear Vertex Selection",
+                Action = () => _selectionService.ClearVertexSelection()
             });
             
             items.Add(new SelectModeContextMenuItem { IsSeparator = true });
@@ -353,6 +520,13 @@ public class SelectMode : InteractionModeBase
             Text = "Filter: Polylines Only",
             Action = () => Filter = SelectionFilter.Polylines,
             IsChecked = Filter == SelectionFilter.Polylines
+        });
+        
+        items.Add(new SelectModeContextMenuItem
+        {
+            Text = "Filter: Vertices Only",
+            Action = () => Filter = SelectionFilter.Vertices,
+            IsChecked = Filter == SelectionFilter.Vertices
         });
         
         items.Add(new SelectModeContextMenuItem { IsSeparator = true });

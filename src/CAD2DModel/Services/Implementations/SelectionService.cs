@@ -1,14 +1,16 @@
 using System.Collections.ObjectModel;
 using CAD2DModel.Geometry;
+using CAD2DModel.Selection;
 
 namespace CAD2DModel.Services.Implementations;
 
 /// <summary>
-/// Manages entity selection with hit testing and selection boxes
+/// Manages entity and vertex selection with hit testing and selection boxes
 /// </summary>
 public class SelectionService : ISelectionService
 {
     private readonly ObservableCollection<IEntity> _selectedEntities = new();
+    private readonly ObservableCollection<VertexHandle> _selectedVertices = new();
     private readonly IGeometryEngine _geometryEngine;
     
     public SelectionService(IGeometryEngine geometryEngine)
@@ -17,8 +19,10 @@ public class SelectionService : ISelectionService
     }
     
     public IReadOnlyCollection<IEntity> SelectedEntities => _selectedEntities;
+    public IReadOnlyCollection<VertexHandle> SelectedVertices => _selectedVertices;
     
     public event EventHandler? SelectionChanged;
+    public event EventHandler? VertexSelectionChanged;
     
     public IEntity? HitTest(Point2D point, double tolerance, IEnumerable<IEntity> entities)
     {
@@ -204,6 +208,177 @@ public class SelectionService : ISelectionService
         }
     }
     
+    public VertexHandle? HitTestVertex(Point2D point, double tolerance, IEnumerable<IEntity> entities)
+    {
+        var toleranceSquared = tolerance * tolerance;
+        
+        foreach (var entity in entities)
+        {
+            if (!entity.IsVisible)
+                continue;
+            
+            if (entity is Polyline polyline)
+            {
+                for (int i = 0; i < polyline.Vertices.Count; i++)
+                {
+                    var vertex = polyline.Vertices[i];
+                    var distSquared = point.DistanceSquaredTo(vertex.Location);
+                    if (distSquared <= toleranceSquared)
+                    {
+                        return new VertexHandle(polyline, i);
+                    }
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                for (int i = 0; i < boundary.Vertices.Count; i++)
+                {
+                    var vertex = boundary.Vertices[i];
+                    var distSquared = point.DistanceSquaredTo(vertex.Location);
+                    if (distSquared <= toleranceSquared)
+                    {
+                        return new VertexHandle(boundary, i);
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    public IEnumerable<VertexHandle> SelectVerticesInBox(Rect2D box, IEnumerable<IEntity> entities)
+    {
+        var vertices = new List<VertexHandle>();
+        
+        foreach (var entity in entities)
+        {
+            if (!entity.IsVisible)
+                continue;
+            
+            if (entity is Polyline polyline)
+            {
+                for (int i = 0; i < polyline.Vertices.Count; i++)
+                {
+                    var vertex = polyline.Vertices[i];
+                    if (box.Contains(vertex.Location))
+                    {
+                        vertices.Add(new VertexHandle(polyline, i));
+                    }
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                for (int i = 0; i < boundary.Vertices.Count; i++)
+                {
+                    var vertex = boundary.Vertices[i];
+                    if (box.Contains(vertex.Location))
+                    {
+                        vertices.Add(new VertexHandle(boundary, i));
+                    }
+                }
+            }
+        }
+        
+        return vertices;
+    }
+    
+    public void SelectVertex(VertexHandle vertex, bool addToSelection = false)
+    {
+        if (vertex == null)
+            throw new ArgumentNullException(nameof(vertex));
+        
+        if (!addToSelection)
+        {
+            _selectedVertices.Clear();
+        }
+        
+        if (!_selectedVertices.Contains(vertex))
+        {
+            _selectedVertices.Add(vertex);
+        }
+        
+        OnVertexSelectionChanged();
+    }
+    
+    public void SelectVertices(IEnumerable<VertexHandle> vertices, bool addToSelection = false)
+    {
+        if (vertices == null)
+            throw new ArgumentNullException(nameof(vertices));
+        
+        if (!addToSelection)
+        {
+            _selectedVertices.Clear();
+        }
+        
+        foreach (var vertex in vertices)
+        {
+            if (!_selectedVertices.Contains(vertex))
+            {
+                _selectedVertices.Add(vertex);
+            }
+        }
+        
+        OnVertexSelectionChanged();
+    }
+    
+    public void DeselectVertex(VertexHandle vertex)
+    {
+        if (vertex == null)
+            throw new ArgumentNullException(nameof(vertex));
+        
+        if (_selectedVertices.Remove(vertex))
+        {
+            OnVertexSelectionChanged();
+        }
+    }
+    
+    public void ClearVertexSelection()
+    {
+        if (_selectedVertices.Count == 0)
+            return;
+        
+        _selectedVertices.Clear();
+        OnVertexSelectionChanged();
+    }
+    
+    public void ClearAllSelections()
+    {
+        bool changed = false;
+        
+        if (_selectedEntities.Count > 0)
+        {
+            _selectedEntities.Clear();
+            changed = true;
+        }
+        
+        if (_selectedVertices.Count > 0)
+        {
+            _selectedVertices.Clear();
+            changed = true;
+        }
+        
+        if (changed)
+        {
+            OnSelectionChanged();
+            OnVertexSelectionChanged();
+        }
+    }
+    
+    public void ToggleVertexSelection(VertexHandle vertex)
+    {
+        if (vertex == null)
+            throw new ArgumentNullException(nameof(vertex));
+        
+        if (_selectedVertices.Contains(vertex))
+        {
+            DeselectVertex(vertex);
+        }
+        else
+        {
+            SelectVertex(vertex, addToSelection: true);
+        }
+    }
+    
     private bool SegmentIntersectsBox(LineSegment segment, Rect2D box)
     {
         // Check if either endpoint is inside the box
@@ -237,5 +412,10 @@ public class SelectionService : ISelectionService
     private void OnSelectionChanged()
     {
         SelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+    
+    private void OnVertexSelectionChanged()
+    {
+        VertexSelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -196,6 +196,8 @@ public partial class MainWindow : Window
             if (selectionService != null)
             {
                 CanvasControl.SelectionService = selectionService;
+                // Subscribe to vertex selection changes for view updates
+                selectionService.VertexSelectionChanged += (s, e) => CanvasControl.InvalidateVisual();
             }
             
             // Connect status bar to canvas status updates
