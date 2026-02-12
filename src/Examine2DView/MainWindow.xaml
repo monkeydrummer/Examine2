@@ -1,0 +1,283 @@
+<Window x:Class="Examine2DView.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:CAD2DView.Controls;assembly=CAD2DView"
+        mc:Ignorable="d"
+        Title="{Binding Title}" 
+        Height="900" Width="1400"
+        WindowState="Maximized">
+    
+    <Window.InputBindings>
+        <KeyBinding Key="OemPlus" Modifiers="Ctrl" 
+                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomInCommand}"/>
+        <KeyBinding Key="Add" Modifiers="Ctrl" 
+                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomInCommand}"/>
+        <KeyBinding Key="OemMinus" Modifiers="Ctrl" 
+                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomOutCommand}"/>
+        <KeyBinding Key="Subtract" Modifiers="Ctrl" 
+                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomOutCommand}"/>
+        <KeyBinding Key="D0" Modifiers="Ctrl" 
+                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomFitCommand}"/>
+        <KeyBinding Key="NumPad0" Modifiers="Ctrl" 
+                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomFitCommand}"/>
+    </Window.InputBindings>
+    
+    <Window.Resources>
+        <Style TargetType="MenuItem">
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+    </Window.Resources>
+    
+    <DockPanel>
+        <!-- Menu Bar -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New Project" Command="{Binding NewProjectCommand}" InputGestureText="Ctrl+N"/>
+                <MenuItem Header="_Open Project..." Command="{Binding OpenProjectCommand}" InputGestureText="Ctrl+O"/>
+                <Separator/>
+                <MenuItem Header="_Save Project" Command="{Binding SaveProjectCommand}" InputGestureText="Ctrl+S"/>
+                <MenuItem Header="Save Project _As..." Command="{Binding SaveProjectAsCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Close Project" Command="{Binding CloseProjectCommand}"/>
+                <Separator/>
+                <MenuItem Header="E_xit" Command="{Binding ExitCommand}" InputGestureText="Alt+F4"/>
+            </MenuItem>
+            
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Undo" InputGestureText="Ctrl+Z"/>
+                <MenuItem Header="_Redo" InputGestureText="Ctrl+Y"/>
+                <Separator/>
+                <MenuItem Header="Cu_t" InputGestureText="Ctrl+X"/>
+                <MenuItem Header="_Copy" InputGestureText="Ctrl+C"/>
+                <MenuItem Header="_Paste" InputGestureText="Ctrl+V"/>
+                <MenuItem Header="_Delete" InputGestureText="Del"/>
+            </MenuItem>
+            
+            <MenuItem Header="_View">
+                <MenuItem Header="Zoom _In" InputGestureText="Ctrl++" 
+                          Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomInCommand}"/>
+                <MenuItem Header="Zoom _Out" InputGestureText="Ctrl+-" 
+                          Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomOutCommand}"/>
+                <MenuItem Header="Zoom _Fit" InputGestureText="Ctrl+0" 
+                          Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomFitCommand}"/>
+                <Separator/>
+                <MenuItem Header="Show _Grid" IsCheckable="True" IsChecked="True"/>
+                <MenuItem Header="Show _Snap" IsCheckable="True" IsChecked="True"/>
+            </MenuItem>
+            
+            <MenuItem Header="_Model">
+                <MenuItem Header="Create _Boundary" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddBoundaryModeCommand}"/>
+                <MenuItem Header="Create _Polyline" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddPolylineModeCommand}"/>
+                <Separator/>
+                <MenuItem Header="Import _DXF..."/>
+                <MenuItem Header="Export D_XF..."/>
+            </MenuItem>
+            
+            <MenuItem Header="_Analysis">
+                <MenuItem Header="Run _Analysis" InputGestureText="F5"/>
+                <MenuItem Header="_Stop Analysis" InputGestureText="Esc"/>
+                <Separator/>
+                <MenuItem Header="Analysis _Settings..."/>
+                <MenuItem Header="_Material Properties..."/>
+                <MenuItem Header="_Strength Criteria..."/>
+            </MenuItem>
+            
+            <MenuItem Header="_Help">
+                <MenuItem Header="_Documentation" InputGestureText="F1"/>
+                <MenuItem Header="_About" Command="{Binding ShowAboutCommand}"/>
+            </MenuItem>
+        </Menu>
+        
+        <!-- Toolbar -->
+        <ToolBarTray DockPanel.Dock="Top">
+            <ToolBar>
+                <Button Content="New" ToolTip="New Project" Command="{Binding NewProjectCommand}"/>
+                <Button Content="Open" ToolTip="Open Project" Command="{Binding OpenProjectCommand}"/>
+                <Button Content="Save" ToolTip="Save Project" Command="{Binding SaveProjectCommand}"/>
+                <Separator/>
+                <Button Content="Undo" ToolTip="Undo (Ctrl+Z)"/>
+                <Button Content="Redo" ToolTip="Redo (Ctrl+Y)"/>
+            </ToolBar>
+            
+            <ToolBar>
+                <Button Content="Select" ToolTip="Select Tool" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SelectModeCommand}"/>
+                <Button Content="Boundary" ToolTip="Create Boundary" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddBoundaryModeCommand}"/>
+                <Button Content="Polyline" ToolTip="Create Polyline" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddPolylineModeCommand}"/>
+                <Separator/>
+                <Button Content="Query Point" ToolTip="Add Query Point"/>
+                <Button Content="Query Line" ToolTip="Add Query Polyline"/>
+            </ToolBar>
+            
+            <ToolBar>
+                <Button Content="Zoom In" ToolTip="Zoom In (Ctrl++)" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomInCommand}"/>
+                <Button Content="Zoom Out" ToolTip="Zoom Out (Ctrl+-)" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomOutCommand}"/>
+                <Button Content="Zoom Fit" ToolTip="Zoom to Fit (Ctrl+0)" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomFitCommand}"/>
+                <Separator/>
+                <Button Content="Run" ToolTip="Run Analysis (F5)"/>
+            </ToolBar>
+        </ToolBarTray>
+        
+        <!-- Status Bar -->
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusText" Text="Ready"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock x:Name="CoordinatesText" Text="X: 0.000 Y: 0.000"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock x:Name="ScaleText" Text="Scale: 1.0"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="Snap:" Margin="0,0,5,0" FontWeight="Bold"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <CheckBox x:Name="SnapVertexCheck" Content="Vertex" IsChecked="True" 
+                          Margin="2,0" ToolTip="Snap to vertices"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <CheckBox x:Name="SnapMidpointCheck" Content="Midpoint" IsChecked="True" 
+                          Margin="2,0" ToolTip="Snap to segment midpoints"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <CheckBox x:Name="SnapGridCheck" Content="Grid" IsChecked="True" 
+                          Margin="2,0" ToolTip="Snap to grid points"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <CheckBox x:Name="SnapOrthoCheck" Content="Ortho" IsChecked="False" 
+                          Margin="2,0" ToolTip="Snap to orthogonal angles"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <CheckBox x:Name="SnapNearestCheck" Content="Nearest" IsChecked="True" 
+                          Margin="2,0" ToolTip="Snap to nearest point on entity"/>
+            </StatusBarItem>
+            <StatusBarItem>
+                <CheckBox x:Name="SnapIntersectionCheck" Content="Intersection" IsChecked="False" 
+                          Margin="2,0" ToolTip="Snap to intersections"/>
+            </StatusBarItem>
+        </StatusBar>
+        
+        <!-- Main Content Area -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="300"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Left Panel - Model Tree -->
+            <Border Grid.Column="0" BorderBrush="#CCCCCC" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" 
+                              Text="Model Explorer" 
+                              FontWeight="Bold" 
+                              Padding="8"
+                              Background="#F0F0F0"/>
+                    
+                    <TreeView>
+                        <TreeViewItem Header="Boundaries" IsExpanded="True">
+                            <TreeViewItem Header="Excavation 1"/>
+                            <TreeViewItem Header="External Box"/>
+                        </TreeViewItem>
+                        <TreeViewItem Header="Stress Grids" IsExpanded="True">
+                            <TreeViewItem Header="Main Grid"/>
+                        </TreeViewItem>
+                        <TreeViewItem Header="Queries">
+                            <TreeViewItem Header="Query Point 1"/>
+                        </TreeViewItem>
+                    </TreeView>
+                </DockPanel>
+            </Border>
+            
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" 
+                         Width="5" 
+                         HorizontalAlignment="Stretch"
+                         Background="#E0E0E0"/>
+            
+            <!-- Center Panel - Canvas -->
+            <Border Grid.Column="2" Background="White">
+                <controls:SkiaCanvasControl x:Name="CanvasControl"/>
+            </Border>
+            
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="3" 
+                         Width="5" 
+                         HorizontalAlignment="Stretch"
+                         Background="#E0E0E0"/>
+            
+            <!-- Right Panel - Properties -->
+            <Border Grid.Column="4" BorderBrush="#CCCCCC" BorderThickness="1,0,0,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" 
+                              Text="Properties" 
+                              FontWeight="Bold" 
+                              Padding="8"
+                              Background="#F0F0F0"/>
+                    
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="8">
+                            <GroupBox Header="Analysis Settings" Margin="0,0,0,8">
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="Plane Strain Type:" Margin="0,0,0,4"/>
+                                    <ComboBox SelectedIndex="0" Margin="0,0,0,8">
+                                        <ComboBoxItem Content="Plane Strain"/>
+                                        <ComboBoxItem Content="Complete Plane Strain"/>
+                                    </ComboBox>
+                                    
+                                    <TextBlock Text="Element Type:" Margin="0,0,0,4"/>
+                                    <ComboBox SelectedIndex="1" Margin="0,0,0,8">
+                                        <ComboBoxItem Content="Constant"/>
+                                        <ComboBoxItem Content="Linear"/>
+                                        <ComboBoxItem Content="Quadratic"/>
+                                    </ComboBox>
+                                    
+                                    <TextBlock Text="Number of Elements:" Margin="0,0,0,4"/>
+                                    <TextBox Text="100" Margin="0,0,0,8"/>
+                                    
+                                    <Button Content="Run Analysis" Padding="8,4" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </GroupBox>
+                            
+                            <GroupBox Header="Contour Settings" Margin="0,0,0,8">
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="Result Type:" Margin="0,0,0,4"/>
+                                    <ComboBox SelectedIndex="0" Margin="0,0,0,8">
+                                        <ComboBoxItem Content="Major Principal Stress"/>
+                                        <ComboBoxItem Content="Minor Principal Stress"/>
+                                        <ComboBoxItem Content="Displacement"/>
+                                        <ComboBoxItem Content="Strength Factor"/>
+                                    </ComboBox>
+                                    
+                                    <TextBlock Text="Color Map:" Margin="0,0,0,4"/>
+                                    <ComboBox SelectedIndex="0" Margin="0,0,0,8">
+                                        <ComboBoxItem Content="Viridis"/>
+                                        <ComboBoxItem Content="Plasma"/>
+                                        <ComboBoxItem Content="Hot to Cold"/>
+                                        <ComboBoxItem Content="Red to White"/>
+                                    </ComboBox>
+                                    
+                                    <TextBlock Text="Number of Intervals:" Margin="0,0,0,4"/>
+                                    <TextBox Text="10" Margin="0,0,0,8"/>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>
