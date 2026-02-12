@@ -196,7 +196,9 @@ public partial class MainWindow : Window
             if (selectionService != null)
             {
                 CanvasControl.SelectionService = selectionService;
-                // Subscribe to vertex selection changes for view updates
+                // Subscribe to selection changes for view updates and status bar
+                selectionService.SelectionChanged += OnSelectionCountChanged;
+                selectionService.VertexSelectionChanged += OnSelectionCountChanged;
                 selectionService.VertexSelectionChanged += (s, e) => CanvasControl.InvalidateVisual();
             }
             
@@ -356,6 +358,9 @@ public partial class MainWindow : Window
         
         CanvasControl.Polylines.Add(queryLine);
         
+        // Update selection count display
+        UpdateSelectionCountDisplay();
+        
         // Create external boundary box
         var externalBox = new Boundary
         {
@@ -374,5 +379,52 @@ public partial class MainWindow : Window
         CanvasControl.Camera.Center = Point2D.Zero;
         CanvasControl.Camera.Scale = 0.05; // Zoom out to see the whole scene
         CanvasControl.InvalidateVisual();
+    }
+    
+    private void OnSelectionCountChanged(object? sender, EventArgs e)
+    {
+        UpdateSelectionCountDisplay();
+    }
+    
+    private void UpdateSelectionCountDisplay()
+    {
+        if (_serviceProvider == null)
+            return;
+        
+        var selectionService = _serviceProvider.GetService<ISelectionService>();
+        if (selectionService == null)
+            return;
+        
+        int entityCount = selectionService.SelectedEntities.Count;
+        int vertexCount = selectionService.SelectedVertices.Count;
+        
+        if (entityCount == 0 && vertexCount == 0)
+        {
+            SelectionCountText.Text = "";
+            SelectionCountSeparator.Visibility = System.Windows.Visibility.Collapsed;
+        }
+        else
+        {
+            var parts = new List<string>();
+            
+            if (entityCount > 0)
+            {
+                var boundaryCount = selectionService.SelectedEntities.OfType<Boundary>().Count();
+                var polylineCount = selectionService.SelectedEntities.OfType<Polyline>().Count();
+                
+                if (boundaryCount > 0)
+                    parts.Add($"{boundaryCount} {(boundaryCount == 1 ? "boundary" : "boundaries")}");
+                if (polylineCount > 0)
+                    parts.Add($"{polylineCount} {(polylineCount == 1 ? "polyline" : "polylines")}");
+            }
+            
+            if (vertexCount > 0)
+            {
+                parts.Add($"{vertexCount} {(vertexCount == 1 ? "vertex" : "vertices")}");
+            }
+            
+            SelectionCountText.Text = $"Selected: {string.Join(", ", parts)}";
+            SelectionCountSeparator.Visibility = System.Windows.Visibility.Visible;
+        }
     }
 }

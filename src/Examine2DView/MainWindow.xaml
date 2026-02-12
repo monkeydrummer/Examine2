@@ -132,6 +132,10 @@
             </StatusBarItem>
             <Separator/>
             <StatusBarItem>
+                <TextBlock x:Name="SelectionCountText" Text="" Foreground="DarkBlue" FontWeight="SemiBold"/>
+            </StatusBarItem>
+            <Separator x:Name="SelectionCountSeparator" Visibility="Collapsed"/>
+            <StatusBarItem>
                 <TextBlock x:Name="CoordinatesText" Text="X: 0.000 Y: 0.000"/>
             </StatusBarItem>
             <Separator/>

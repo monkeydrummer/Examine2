@@ -189,6 +189,12 @@ public class SelectMode : InteractionModeBase
     
     public override void Render(IRenderContext context)
     {
+        // Draw vertex handles if in vertex selection mode
+        if (Filter == SelectionFilter.Vertices && _camera != null)
+        {
+            DrawVertexHandles(context);
+        }
+        
         // Draw selection box if active
         if (_boxStart.HasValue && State == ModeState.Active)
         {
@@ -227,6 +233,12 @@ public class SelectMode : InteractionModeBase
                     context.DrawLine(segment.Start, segment.End, 255, 165, 0, 3, dashed: false); // Orange highlight
                 }
             }
+        }
+        
+        // Draw selected vertices
+        foreach (var vertex in _selectionService.SelectedVertices)
+        {
+            DrawVertexHandle(context, vertex.Location, true);
         }
     }
     
