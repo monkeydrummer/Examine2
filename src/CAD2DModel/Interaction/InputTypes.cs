@@ -64,5 +64,19 @@ public enum Cursor
     SizeNS,
     SizeNWSE,
     SizeWE,
-    Wait
+    Wait,
+    PickBox  // Selection cursor with pick box indicator
+}
+
+/// <summary>
+/// Selection filter flags for controlling what entities can be selected
+/// </summary>
+[Flags]
+public enum SelectionFilter
+{
+    None = 0,
+    Polylines = 1 << 0,
+    Boundaries = 1 << 1,
+    Vertices = 1 << 2,
+    All = Polylines | Boundaries | Vertices
 }

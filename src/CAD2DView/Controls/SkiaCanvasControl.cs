@@ -585,6 +585,7 @@ public class SkiaCanvasControl : UserControl
             CAD2DModel.Interaction.Cursor.Hand => Cursors.Hand,
             CAD2DModel.Interaction.Cursor.Wait => Cursors.Wait,
             CAD2DModel.Interaction.Cursor.SizeAll => Cursors.SizeAll,
+            CAD2DModel.Interaction.Cursor.PickBox => Cursors.Cross, // Use Cross cursor for pick box (closest to selection cursor)
             _ => Cursors.Arrow
         };
     }

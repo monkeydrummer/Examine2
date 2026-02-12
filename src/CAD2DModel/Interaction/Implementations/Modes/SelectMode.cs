@@ -18,6 +18,11 @@ public class SelectMode : InteractionModeBase
     private Point2D _currentMousePosition;
     private Camera.Camera2D? _camera;
     
+    /// <summary>
+    /// Filter for what types of entities can be selected
+    /// </summary>
+    public SelectionFilter Filter { get; set; } = SelectionFilter.All;
+    
     public SelectMode(
         IModeManager modeManager,
         ICommandManager commandManager,
@@ -31,7 +36,7 @@ public class SelectMode : InteractionModeBase
     }
     
     public override string Name => "Select";
-    public override Cursor Cursor => Interaction.Cursor.Arrow;
+    public override Cursor Cursor => Interaction.Cursor.PickBox;
     
     public override string StatusPrompt
     {
@@ -207,7 +212,10 @@ public class SelectMode : InteractionModeBase
         // Convert pixel tolerance to world units
         double worldTolerance = 5.0 * _camera.Scale; // 5 pixels
         
-        var hitEntity = _selectionService.HitTest(point, worldTolerance, _geometryModel.Entities);
+        // Filter entities based on selection filter
+        var filteredEntities = FilterEntities(_geometryModel.Entities);
+        
+        var hitEntity = _selectionService.HitTest(point, worldTolerance, filteredEntities);
         
         if (hitEntity != null)
         {
@@ -242,7 +250,10 @@ public class SelectMode : InteractionModeBase
         // Determine selection mode: left-to-right = window (entirely inside), right-to-left = crossing
         bool crossingMode = end.X < start.X;
         
-        var entitiesInBox = _selectionService.SelectInBox(selectionBox, _geometryModel.Entities, !crossingMode);
+        // Filter entities based on selection filter
+        var filteredEntities = FilterEntities(_geometryModel.Entities);
+        
+        var entitiesInBox = _selectionService.SelectInBox(selectionBox, filteredEntities, !crossingMode);
         
         if (addToSelection)
         {
@@ -254,6 +265,33 @@ public class SelectMode : InteractionModeBase
             // Replace selection
             _selectionService.Select(entitiesInBox);
         }
+    }
+    
+    private IEnumerable<IEntity> FilterEntities(IEnumerable<IEntity> entities)
+    {
+        if (Filter == SelectionFilter.All)
+            return entities;
+        
+        var filtered = new List<IEntity>();
+        
+        foreach (var entity in entities)
+        {
+            bool include = false;
+            
+            if ((Filter & SelectionFilter.Polylines) != 0 && entity is Polyline)
+                include = true;
+            
+            if ((Filter & SelectionFilter.Boundaries) != 0 && entity is Boundary)
+                include = true;
+            
+            // Vertices filter would require a different approach - maybe showing vertex handles
+            // For now, vertices are part of polylines/boundaries
+            
+            if (include)
+                filtered.Add(entity);
+        }
+        
+        return filtered;
     }
     
     private void DeleteSelectedEntities()
