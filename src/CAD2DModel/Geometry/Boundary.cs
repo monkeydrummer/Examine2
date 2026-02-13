@@ -8,13 +8,13 @@ public class Boundary : Polyline
     public Boundary() : base()
     {
         IsClosed = true;
-        Intersectable = false; // Default: boundaries don't intersect
+        Intersectable = true; // Default: boundaries are intersectable
     }
     
     public Boundary(IEnumerable<Point2D> points) : base(points)
     {
         IsClosed = true;
-        Intersectable = false;
+        Intersectable = true;
     }
     
     /// <summary>

@@ -232,6 +232,16 @@ public class MoveVertexMode : InteractionModeBase
                 {
                     snappedPoint = snapResult.SnappedPoint;
                 }
+                
+                // Apply ortho snap if enabled (after other snaps)
+                if ((_snapService.ActiveSnapModes & SnapMode.Ortho) != 0)
+                {
+                    var orthoResult = _snapService.SnapToOrtho(snappedPoint, _originPoint.Value);
+                    if (orthoResult.IsSnapped)
+                    {
+                        snappedPoint = orthoResult.SnappedPoint;
+                    }
+                }
             }
             
             _currentPreviewPoint = snappedPoint;
@@ -256,8 +266,8 @@ public class MoveVertexMode : InteractionModeBase
                 }
             }
             
-            // Trigger redraw to show live preview
-            // Note: Render method will be called automatically by the canvas control
+            // Notify that geometry has changed for live contour update
+            _geometryModel.NotifyGeometryChanged();
         }
     }
     

@@ -9,10 +9,11 @@ namespace CAD2DModel.Services.Implementations;
 /// </summary>
 public class SnapService : ISnapService
 {
-    public SnapMode ActiveSnapModes { get; set; } = SnapMode.Vertex | SnapMode.Midpoint | SnapMode.Grid;
+    public SnapMode ActiveSnapModes { get; set; } = SnapMode.Vertex | SnapMode.Midpoint | SnapMode.Ortho;
     public double SnapTolerancePixels { get; set; } = 10.0; // screen pixels
     public double VertexSnapTolerancePixels { get; set; } = 8.0; // screen pixels - less aggressive
     public double GridSpacing { get; set; } = 1.0; // world units
+    public double OrthoAngleToleranceDegrees { get; set; } = 5.0; // only snap if within 5 degrees of ortho/diagonal
     
     public SnapResult Snap(Point2D point, IEnumerable<IEntity> entities, Camera2D camera)
     {
@@ -142,20 +143,55 @@ public class SnapService : ISnapService
     public SnapResult SnapToOrtho(Point2D point, Point2D referencePoint)
     {
         var delta = point - referencePoint;
+        var distance = Math.Sqrt(delta.X * delta.X + delta.Y * delta.Y);
         
-        // Snap to horizontal or vertical based on which is closer
-        Point2D snappedPoint;
+        // If too close to reference point, no meaningful angle to snap
+        if (distance < 1e-6)
+        {
+            return new SnapResult(point, false, SnapMode.None);
+        }
         
-        if (Math.Abs(delta.X) > Math.Abs(delta.Y))
+        // Calculate angle in radians from horizontal (0 to 2π)
+        var angleRadians = Math.Atan2(delta.Y, delta.X);
+        
+        // Convert to degrees (0 to 360)
+        var angleDegrees = angleRadians * 180.0 / Math.PI;
+        if (angleDegrees < 0)
+            angleDegrees += 360.0;
+        
+        // Check all 8 snap directions: 0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°
+        var snapAngles = new[] { 0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0 };
+        
+        double closestSnapAngle = 0.0;
+        double closestDifference = double.MaxValue;
+        
+        foreach (var snapAngle in snapAngles)
         {
-            // Snap to horizontal
-            snappedPoint = new Point2D(point.X, referencePoint.Y);
+            // Calculate difference, accounting for wrap-around at 360°
+            var diff1 = Math.Abs(angleDegrees - snapAngle);
+            var diff2 = Math.Abs(angleDegrees - (snapAngle + 360.0));
+            var diff3 = Math.Abs(angleDegrees - (snapAngle - 360.0));
+            var minDiff = Math.Min(diff1, Math.Min(diff2, diff3));
+            
+            if (minDiff < closestDifference)
+            {
+                closestDifference = minDiff;
+                closestSnapAngle = snapAngle;
+            }
         }
-        else
+        
+        // If not within tolerance of any snap angle, don't snap
+        if (closestDifference > OrthoAngleToleranceDegrees)
         {
-            // Snap to vertical
-            snappedPoint = new Point2D(referencePoint.X, point.Y);
+            return new SnapResult(point, false, SnapMode.None);
         }
+        
+        // Snap to the closest angle
+        var snappedAngleRadians = closestSnapAngle * Math.PI / 180.0;
+        var snappedPoint = new Point2D(
+            referencePoint.X + distance * Math.Cos(snappedAngleRadians),
+            referencePoint.Y + distance * Math.Sin(snappedAngleRadians)
+        );
         
         return new SnapResult(snappedPoint, true, SnapMode.Ortho);
     }

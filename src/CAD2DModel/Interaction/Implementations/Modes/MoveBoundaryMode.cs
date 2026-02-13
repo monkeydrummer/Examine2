@@ -241,6 +241,16 @@ public class MoveBoundaryMode : InteractionModeBase
                 {
                     snappedPoint = snapResult.SnappedPoint;
                 }
+                
+                // Apply ortho snap if enabled (after other snaps)
+                if ((_snapService.ActiveSnapModes & SnapMode.Ortho) != 0)
+                {
+                    var orthoResult = _snapService.SnapToOrtho(snappedPoint, _originPoint.Value);
+                    if (orthoResult.IsSnapped)
+                    {
+                        snappedPoint = orthoResult.SnappedPoint;
+                    }
+                }
             }
             
             _currentPreviewPoint = snappedPoint;
@@ -272,7 +282,8 @@ public class MoveBoundaryMode : InteractionModeBase
                 }
             }
             
-            // Trigger redraw to show live preview
+            // Notify that geometry has changed for live contour update
+            _geometryModel.NotifyGeometryChanged();
         }
     }
     
@@ -294,6 +305,16 @@ public class MoveBoundaryMode : InteractionModeBase
             if (snapResult != null)
             {
                 snappedDestination = snapResult.SnappedPoint;
+            }
+            
+            // Apply ortho snap if enabled (after other snaps)
+            if ((_snapService.ActiveSnapModes & SnapMode.Ortho) != 0)
+            {
+                var orthoResult = _snapService.SnapToOrtho(snappedDestination, _originPoint.Value);
+                if (orthoResult.IsSnapped)
+                {
+                    snappedDestination = orthoResult.SnappedPoint;
+                }
             }
         }
         
@@ -464,6 +485,27 @@ public class MoveBoundaryMode : InteractionModeBase
     
     public override void Render(IRenderContext context)
     {
+        // Draw selection highlights on selected entities
+        foreach (var entity in _selectionService.SelectedEntities)
+        {
+            if (entity is Polyline polyline)
+            {
+                for (int i = 0; i < polyline.GetSegmentCount(); i++)
+                {
+                    var segment = polyline.GetSegment(i);
+                    context.DrawLine(segment.Start, segment.End, 255, 165, 0, 3, dashed: false); // Orange highlight
+                }
+            }
+            else if (entity is Boundary boundary)
+            {
+                for (int i = 0; i < boundary.GetSegmentCount(); i++)
+                {
+                    var segment = boundary.GetSegment(i);
+                    context.DrawLine(segment.Start, segment.End, 255, 165, 0, 3, dashed: false); // Orange highlight
+                }
+            }
+        }
+        
         // Render origin point if set
         if (_originPoint.HasValue)
         {

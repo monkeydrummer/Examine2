@@ -23,6 +23,9 @@ public static class ServiceConfiguration
         services.AddSingleton<ISelectionService, SelectionService>();
         services.AddTransient(typeof(ISpatialIndex<>), typeof(SpatialIndex<>));
         
+        // Contour service (mock implementation for now)
+        services.AddSingleton<IContourService, MockContourService>();
+        
         // Geometry rule engine and model
         services.AddSingleton<IGeometryRuleEngine>(sp => 
         {

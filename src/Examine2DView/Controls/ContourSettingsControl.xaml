@@ -1,0 +1,135 @@
+<UserControl x:Class="Examine2DView.Controls.ContourSettingsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="400"
+             Background="White">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="150"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Visibility Toggle -->
+        <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                  x:Name="VisibilityCheck"
+                  Content="Show Contours"
+                  FontWeight="Bold"
+                  Margin="0,0,0,15"/>
+
+        <!-- Result Field Selection -->
+        <TextBlock Grid.Row="1" Grid.Column="0" 
+                   Text="Result Field:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,0,10"/>
+        <ComboBox Grid.Row="1" Grid.Column="1" 
+                  x:Name="ResultFieldCombo"
+                  Margin="0,0,0,10">
+            <ComboBoxItem Content="Von Mises Stress" Tag="VonMisesStress"/>
+            <ComboBoxItem Content="Principal Stress σ₁" Tag="PrincipalStress1"/>
+            <ComboBoxItem Content="Principal Stress σ₃" Tag="PrincipalStress3"/>
+            <ComboBoxItem Content="Stress σₓ" Tag="StressX"/>
+            <ComboBoxItem Content="Stress σᵧ" Tag="StressY"/>
+            <ComboBoxItem Content="Shear Stress τₓᵧ" Tag="StressXY"/>
+            <ComboBoxItem Content="Displacement Magnitude" Tag="DisplacementMagnitude"/>
+            <ComboBoxItem Content="Displacement X" Tag="DisplacementX"/>
+            <ComboBoxItem Content="Displacement Y" Tag="DisplacementY"/>
+        </ComboBox>
+
+        <!-- Color Scheme Selection -->
+        <TextBlock Grid.Row="2" Grid.Column="0" 
+                   Text="Color Scheme:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,0,10"/>
+        <ComboBox Grid.Row="2" Grid.Column="1" 
+                  x:Name="ColorSchemeCombo"
+                  Margin="0,0,0,10">
+            <ComboBoxItem Content="Rainbow" Tag="Rainbow"/>
+            <ComboBoxItem Content="Jet" Tag="Jet"/>
+            <ComboBoxItem Content="Viridis" Tag="Viridis"/>
+            <ComboBoxItem Content="Grayscale" Tag="Grayscale"/>
+            <ComboBoxItem Content="Cool/Warm" Tag="CoolWarm"/>
+        </ComboBox>
+
+        <!-- Number of Levels -->
+        <TextBlock Grid.Row="3" Grid.Column="0" 
+                   Text="Number of Levels:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,0,10"/>
+        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+            <Slider x:Name="LevelsSlider" 
+                    Width="150" 
+                    Minimum="5" 
+                    Maximum="20" 
+                    TickFrequency="1"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding ElementName=LevelsSlider, Path=Value}" 
+                       Margin="10,0,0,0"
+                       VerticalAlignment="Center"
+                       MinWidth="30"/>
+        </StackPanel>
+
+        <!-- Display Options -->
+        <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                   Text="Display Options"
+                   FontWeight="Bold"
+                   Margin="0,10,0,5"/>
+
+        <CheckBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                  x:Name="ShowFilledCheck"
+                  Content="Show Filled Contours"
+                  Margin="0,0,0,5"/>
+
+        <CheckBox Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2"
+                  x:Name="ShowLinesCheck"
+                  Content="Show Contour Lines"
+                  Margin="0,0,0,10"/>
+
+        <!-- Fill Opacity -->
+        <TextBlock Grid.Row="7" Grid.Column="0" 
+                   Text="Fill Opacity:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,0,10"/>
+        <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+            <Slider x:Name="OpacitySlider" 
+                    Width="150" 
+                    Minimum="0.1" 
+                    Maximum="1.0" 
+                    TickFrequency="0.1"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding ElementName=OpacitySlider, Path=Value, StringFormat='{}{0:F1}'}" 
+                       Margin="10,0,0,0"
+                       VerticalAlignment="Center"
+                       MinWidth="30"/>
+        </StackPanel>
+
+        <!-- Value Range -->
+        <TextBlock Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2"
+                   Text="Value Range (leave empty for auto)"
+                   FontWeight="Bold"
+                   Margin="0,10,0,5"/>
+
+        <StackPanel Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+            <TextBlock Text="Min:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox x:Name="MinValueText" Width="80" Margin="0,0,20,0"/>
+            <TextBlock Text="Max:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox x:Name="MaxValueText" Width="80"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

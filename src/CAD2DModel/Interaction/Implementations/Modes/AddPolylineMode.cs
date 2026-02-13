@@ -135,6 +135,16 @@ public class AddPolylineMode : InteractionModeBase
             {
                 _currentSnapResult = null;
             }
+            
+            // Apply ortho snap if enabled and we have at least one point
+            if ((_snapService.ActiveSnapModes & SnapMode.Ortho) != 0 && _points.Count > 0)
+            {
+                var orthoResult = _snapService.SnapToOrtho(_currentMousePosition, _points[_points.Count - 1]);
+                if (orthoResult.IsSnapped)
+                {
+                    _currentMousePosition = orthoResult.SnappedPoint;
+                }
+            }
         }
     }
     
@@ -148,6 +158,16 @@ public class AddPolylineMode : InteractionModeBase
             {
                 var snapResult = _snapService.Snap(worldPoint, _geometryModel.Entities, _camera);
                 point = snapResult != null ? snapResult.SnappedPoint : worldPoint;
+                
+                // Apply ortho snap if enabled and we have at least one point
+                if ((_snapService.ActiveSnapModes & SnapMode.Ortho) != 0 && _points.Count > 0)
+                {
+                    var orthoResult = _snapService.SnapToOrtho(point, _points[_points.Count - 1]);
+                    if (orthoResult.IsSnapped)
+                    {
+                        point = orthoResult.SnappedPoint;
+                    }
+                }
             }
             
             switch (_drawingMode)

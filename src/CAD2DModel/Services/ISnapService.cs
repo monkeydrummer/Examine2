@@ -62,6 +62,11 @@ public interface ISnapService
     double GridSpacing { get; set; }
     
     /// <summary>
+    /// Ortho snap angle tolerance in degrees (only snaps if within this many degrees of horizontal/vertical)
+    /// </summary>
+    double OrthoAngleToleranceDegrees { get; set; }
+    
+    /// <summary>
     /// Attempt to snap a point to nearby geometry
     /// </summary>
     SnapResult Snap(Point2D point, IEnumerable<IEntity> entities, CAD2DModel.Camera.Camera2D camera);

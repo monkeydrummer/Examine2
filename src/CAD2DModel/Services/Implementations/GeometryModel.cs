@@ -14,6 +14,8 @@ public class GeometryModel : IGeometryModel
     
     public ObservableCollection<IEntity> Entities => _entities;
     
+    public event EventHandler? GeometryChanged;
+    
     /// <summary>
     /// Set the rule engine for automatic rule application
     /// This is set by DI after construction
@@ -21,6 +23,11 @@ public class GeometryModel : IGeometryModel
     public void SetRuleEngine(IGeometryRuleEngine ruleEngine)
     {
         _ruleEngine = ruleEngine;
+    }
+    
+    public void NotifyGeometryChanged()
+    {
+        GeometryChanged?.Invoke(this, EventArgs.Empty);
     }
     
     public void AddEntity(IEntity entity)

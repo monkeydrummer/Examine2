@@ -6,6 +6,7 @@ using CAD2DModel.Camera;
 using CAD2DModel.Geometry;
 using CAD2DModel.Interaction;
 using CAD2DModel.Services;
+using CAD2DModel.Results;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using SkiaSharp.Views.WPF;
@@ -24,6 +25,17 @@ public class SkiaCanvasControl : UserControl
     private bool _isGridVisible = true;
     private IModeManager? _modeManager;
     private ISelectionService? _selectionService;
+    private IContourService? _contourService;
+    private IGeometryModel? _geometryModel;
+    private ColorMapper _colorMapper = new ColorMapper();
+    
+    // Cached contour rendering data (regenerated only when contours change)
+    private SKColor[]? _cachedContourColors;
+    private ContourData? _lastRenderedContourData;
+    private double _lastMinValue;
+    private double _lastMaxValue;
+    private double _lastFillOpacity;
+    private ColorScheme _lastColorScheme;
     
     // Entities to render
     public ObservableCollection<Polyline> Polylines { get; } = new();
@@ -110,6 +122,36 @@ public class SkiaCanvasControl : UserControl
         }
     }
     
+    public IContourService? ContourService
+    {
+        get => _contourService;
+        set
+        {
+            if (_contourService != null)
+            {
+                _contourService.ContoursUpdated -= OnContoursUpdated;
+            }
+            
+            _contourService = value;
+            
+            if (_contourService != null)
+            {
+                _contourService.ContoursUpdated += OnContoursUpdated;
+            }
+        }
+    }
+    
+    public IGeometryModel? GeometryModel
+    {
+        get => _geometryModel;
+        set => _geometryModel = value;
+    }
+    
+    private void OnContoursUpdated(object? sender, EventArgs e)
+    {
+        InvalidateVisual(); // Redraw to show new contours
+    }
+    
     private void OnSelectionChanged(object? sender, EventArgs e)
     {
         InvalidateVisual(); // Redraw to show selection highlights
@@ -155,6 +197,12 @@ public class SkiaCanvasControl : UserControl
         if (_isGridVisible)
         {
             DrawGrid(canvas, e.Info.Width, e.Info.Height);
+        }
+        
+        // Draw contours (before geometry so boundaries are drawn on top)
+        if (_contourService != null && _contourService.Settings.IsVisible)
+        {
+            DrawContours(canvas);
         }
         
         // Draw geometry entities
@@ -668,6 +716,263 @@ public class SkiaCanvasControl : UserControl
             CAD2DModel.Interaction.Cursor.PickBox => Cursors.Cross, // Use Cross cursor for pick box (closest to selection cursor)
             _ => Cursors.Arrow
         };
+    }
+    
+    private void DrawContours(SKCanvas canvas)
+    {
+        if (_camera == null || _contourService == null)
+            return;
+        
+        var contourData = _contourService.CurrentContourData;
+        if (contourData == null || !contourData.IsValid)
+            return;
+        
+        var settings = _contourService.Settings;
+        
+        // Determine value range
+        double minValue = settings.MinValue ?? contourData.MinValue;
+        double maxValue = settings.MaxValue ?? contourData.MaxValue;
+        
+        if (Math.Abs(maxValue - minValue) < 1e-10)
+            return; // No variation in data
+        
+        // Draw filled contours (triangles colored by interpolated values)
+        if (settings.ShowFilledContours)
+        {
+            // Update color mapper scheme
+            _colorMapper.Scheme = settings.ColorScheme;
+            
+            // Check if we need to rebuild color cache
+            bool needsRebuild = _cachedContourColors == null ||
+                               _lastRenderedContourData != contourData ||
+                               Math.Abs(_lastMinValue - minValue) > 1e-10 ||
+                               Math.Abs(_lastMaxValue - maxValue) > 1e-10 ||
+                               Math.Abs(_lastFillOpacity - settings.FillOpacity) > 1e-10 ||
+                               _lastColorScheme != settings.ColorScheme;
+            
+            if (needsRebuild)
+                {
+                    // Build color array (only once per contour generation)
+                    var allColors = new List<SKColor>(contourData.Triangles.Count);
+                    
+                    for (int i = 0; i < contourData.Triangles.Count; i += 3)
+                    {
+                        int idx0 = contourData.Triangles[i];
+                        int idx1 = contourData.Triangles[i + 1];
+                        int idx2 = contourData.Triangles[i + 2];
+                        
+                        // Check BOTH Values and MeshPoints to ensure consistency with vertex building
+                        if (idx0 >= contourData.Values.Count || 
+                            idx1 >= contourData.Values.Count || 
+                            idx2 >= contourData.Values.Count ||
+                            idx0 >= contourData.MeshPoints.Count || 
+                            idx1 >= contourData.MeshPoints.Count || 
+                            idx2 >= contourData.MeshPoints.Count)
+                            continue;
+                        
+                        var v0 = contourData.Values[idx0];
+                        var v1 = contourData.Values[idx1];
+                        var v2 = contourData.Values[idx2];
+                        
+                        // Map values to colors
+                        var c0 = _colorMapper.MapValue(v0, minValue, maxValue);
+                        var c1 = _colorMapper.MapValue(v1, minValue, maxValue);
+                        var c2 = _colorMapper.MapValue(v2, minValue, maxValue);
+                        
+                        // Add colors
+                        allColors.Add(new SKColor(c0.R, c0.G, c0.B, (byte)(255 * settings.FillOpacity)));
+                        allColors.Add(new SKColor(c1.R, c1.G, c1.B, (byte)(255 * settings.FillOpacity)));
+                        allColors.Add(new SKColor(c2.R, c2.G, c2.B, (byte)(255 * settings.FillOpacity)));
+                    }
+                    
+                    _cachedContourColors = allColors.ToArray();
+                    _lastRenderedContourData = contourData;
+                    _lastMinValue = minValue;
+                    _lastMaxValue = maxValue;
+                    _lastFillOpacity = settings.FillOpacity;
+                    _lastColorScheme = settings.ColorScheme;
+                    
+                    System.Diagnostics.Debug.WriteLine($"Rebuilt contour colors: {allColors.Count / 3} triangles, value range: {minValue:F2} - {maxValue:F2}");
+                }
+                
+                // Build vertex array (must do every frame due to camera transform)
+                // IMPORTANT: Only build if we have matching cached colors for this exact contour data
+                if (_cachedContourColors == null || _lastRenderedContourData != contourData)
+                {
+                    // Colors don't match this contour data, skip drawing this frame
+                    return;
+                }
+                
+                var allVertices = new List<SKPoint>(contourData.Triangles.Count);
+                
+                for (int i = 0; i < contourData.Triangles.Count; i += 3)
+                {
+                    int idx0 = contourData.Triangles[i];
+                    int idx1 = contourData.Triangles[i + 1];
+                    int idx2 = contourData.Triangles[i + 2];
+                    
+                    // Check BOTH Values and MeshPoints to ensure consistency with color building
+                    if (idx0 >= contourData.Values.Count || 
+                        idx1 >= contourData.Values.Count || 
+                        idx2 >= contourData.Values.Count ||
+                        idx0 >= contourData.MeshPoints.Count || 
+                        idx1 >= contourData.MeshPoints.Count || 
+                        idx2 >= contourData.MeshPoints.Count)
+                        continue;
+                    
+                    var p0 = contourData.MeshPoints[idx0];
+                    var p1 = contourData.MeshPoints[idx1];
+                    var p2 = contourData.MeshPoints[idx2];
+                    
+                    // Convert to screen coordinates
+                    var s0 = _camera.WorldToScreen(p0);
+                    var s1 = _camera.WorldToScreen(p1);
+                    var s2 = _camera.WorldToScreen(p2);
+                    
+                    // Add vertices
+                    allVertices.Add(new SKPoint((float)s0.X, (float)s0.Y));
+                    allVertices.Add(new SKPoint((float)s1.X, (float)s1.Y));
+                    allVertices.Add(new SKPoint((float)s2.X, (float)s2.Y));
+                }
+                
+                // Draw all triangles in one call with per-vertex color interpolation
+                if (allVertices.Count > 0 && _cachedContourColors != null && allVertices.Count == _cachedContourColors.Length)
+                {
+                    using var paint = new SKPaint
+                    {
+                        IsAntialias = true,
+                        Style = SKPaintStyle.Fill,
+                        Color = SKColors.White,
+                        BlendMode = SKBlendMode.Src // Disable blending to ensure full opacity
+                    };
+                    
+                    canvas.DrawVertices(
+                        SKVertexMode.Triangles, 
+                        allVertices.ToArray(), 
+                        texs: null,
+                        _cachedContourColors, 
+                        paint);
+                }
+        }
+        
+        // Draw contour lines
+        if (settings.ShowContourLines)
+        {
+            var levels = _colorMapper.GetContourLevels(minValue, maxValue, settings.NumberOfLevels);
+            
+            using var linePaint = new SKPaint
+            {
+                Color = new SKColor(0, 0, 0, 128), // Semi-transparent black
+                StrokeWidth = 1,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke
+            };
+            
+            // Draw contour lines by finding edges that cross each level
+            foreach (var level in levels)
+            {
+                for (int i = 0; i < contourData.Triangles.Count; i += 3)
+                {
+                    int idx0 = contourData.Triangles[i];
+                    int idx1 = contourData.Triangles[i + 1];
+                    int idx2 = contourData.Triangles[i + 2];
+                    
+                    if (idx0 >= contourData.MeshPoints.Count || 
+                        idx1 >= contourData.MeshPoints.Count || 
+                        idx2 >= contourData.MeshPoints.Count)
+                        continue;
+                    
+                    var points = new[]
+                    {
+                        contourData.MeshPoints[idx0],
+                        contourData.MeshPoints[idx1],
+                        contourData.MeshPoints[idx2]
+                    };
+                    
+                    var values = new[]
+                    {
+                        contourData.Values[idx0],
+                        contourData.Values[idx1],
+                        contourData.Values[idx2]
+                    };
+                    
+                    // Find where contour line crosses triangle edges
+                    var crossings = new List<Point2D>();
+                    
+                    for (int j = 0; j < 3; j++)
+                    {
+                        int next = (j + 1) % 3;
+                        var crossing = GetContourCrossing(points[j], points[next], values[j], values[next], level);
+                        if (crossing.HasValue)
+                        {
+                            crossings.Add(crossing.Value);
+                        }
+                    }
+                    
+                    // Draw line segment if we have exactly 2 crossings
+                    if (crossings.Count == 2)
+                    {
+                        var s0 = _camera.WorldToScreen(crossings[0]);
+                        var s1 = _camera.WorldToScreen(crossings[1]);
+                        canvas.DrawLine((float)s0.X, (float)s0.Y, (float)s1.X, (float)s1.Y, linePaint);
+                    }
+                }
+            }
+        }
+        
+        // Mask excavations with white fill to hide contours inside them
+        if (_geometryModel != null)
+        {
+            var excavations = _geometryModel.Entities
+                .OfType<Boundary>()
+                .Where(b => b is not ExternalBoundary);
+            
+            foreach (var excavation in excavations)
+            {
+                if (!excavation.IsVisible || excavation.Vertices.Count < 3)
+                    continue;
+                
+                using var maskPath = new SKPath();
+                var firstVertex = _camera.WorldToScreen(excavation.Vertices[0].Location);
+                maskPath.MoveTo((float)firstVertex.X, (float)firstVertex.Y);
+                
+                for (int i = 1; i < excavation.Vertices.Count; i++)
+                {
+                    var screenPos = _camera.WorldToScreen(excavation.Vertices[i].Location);
+                    maskPath.LineTo((float)screenPos.X, (float)screenPos.Y);
+                }
+                
+                maskPath.Close();
+                
+                using var maskPaint = new SKPaint
+                {
+                    Color = SKColors.White,
+                    IsAntialias = true,
+                    Style = SKPaintStyle.Fill
+                };
+                
+                canvas.DrawPath(maskPath, maskPaint);
+            }
+        }
+    }
+    
+    private Point2D? GetContourCrossing(Point2D p1, Point2D p2, double v1, double v2, double level)
+    {
+        // Check if level is between v1 and v2
+        if ((v1 <= level && v2 >= level) || (v1 >= level && v2 <= level))
+        {
+            if (Math.Abs(v2 - v1) < 1e-10)
+                return null;
+            
+            // Linear interpolation
+            double t = (level - v1) / (v2 - v1);
+            return new Point2D(
+                p1.X + t * (p2.X - p1.X),
+                p1.Y + t * (p2.Y - p1.Y)
+            );
+        }
+        
+        return null;
     }
     
     #endregion

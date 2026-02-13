@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:controls="clr-namespace:CAD2DView.Controls;assembly=CAD2DView"
+        xmlns:local="clr-namespace:Examine2DView.Controls"
         mc:Ignorable="d"
         Title="{Binding Title}" 
         Height="900" Width="1400"
@@ -68,6 +69,7 @@
             </MenuItem>
             
             <MenuItem Header="_Model">
+                <MenuItem Header="Create _External Boundary" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddExternalBoundaryModeCommand}"/>
                 <MenuItem Header="Create _Boundary" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddBoundaryModeCommand}"/>
                 <MenuItem Header="Create _Polyline" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddPolylineModeCommand}"/>
                 <Separator/>
@@ -81,6 +83,8 @@
             <MenuItem Header="_Analysis">
                 <MenuItem Header="Run _Analysis" InputGestureText="F5"/>
                 <MenuItem Header="_Stop Analysis" InputGestureText="Esc"/>
+                <Separator/>
+                <MenuItem Header="_Contour Settings..." Click="ContourSettings_Click"/>
                 <Separator/>
                 <MenuItem Header="Analysis _Settings..."/>
                 <MenuItem Header="_Material Properties..."/>
@@ -107,6 +111,8 @@
             <ToolBar>
                 <Button Content="Select" ToolTip="Select Tool" 
                         Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SelectModeCommand}"/>
+                <Button Content="External Boundary" ToolTip="Create External Boundary" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddExternalBoundaryModeCommand}"/>
                 <Button Content="Boundary" ToolTip="Create Boundary" 
                         Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddBoundaryModeCommand}"/>
                 <Button Content="Polyline" ToolTip="Create Polyline" 
@@ -117,8 +123,7 @@
                 <Button Content="Move Boundary" ToolTip="Move Boundary" 
                         Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=MoveBoundaryModeCommand}"/>
                 <Separator/>
-                <Button Content="Query Point" ToolTip="Add Query Point"/>
-                <Button Content="Query Line" ToolTip="Add Query Polyline"/>
+                <Button Content="Contours..." ToolTip="Contour Settings" Click="ContourSettings_Click"/>
             </ToolBar>
             
             <ToolBar>
@@ -163,11 +168,11 @@
                           Margin="2,0" ToolTip="Snap to segment midpoints"/>
             </StatusBarItem>
             <StatusBarItem>
-                <CheckBox x:Name="SnapGridCheck" Content="Grid" IsChecked="True" 
+                <CheckBox x:Name="SnapGridCheck" Content="Grid" IsChecked="False" 
                           Margin="2,0" ToolTip="Snap to grid points"/>
             </StatusBarItem>
             <StatusBarItem>
-                <CheckBox x:Name="SnapOrthoCheck" Content="Ortho" IsChecked="False" 
+                <CheckBox x:Name="SnapOrthoCheck" Content="Ortho" IsChecked="True" 
                           Margin="2,0" ToolTip="Snap to orthogonal angles"/>
             </StatusBarItem>
             <StatusBarItem>
@@ -222,7 +227,17 @@
             
             <!-- Center Panel - Canvas -->
             <Border Grid.Column="2" Background="White">
-                <controls:SkiaCanvasControl x:Name="CanvasControl"/>
+                <Grid>
+                    <controls:SkiaCanvasControl x:Name="CanvasControl"/>
+                    <!-- Contour Legend -->
+                    <local:ContourLegendControl x:Name="ContourLegend"
+                                                Width="120"
+                                                Height="400"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Top"
+                                                Margin="10"
+                                                Visibility="Collapsed"/>
+                </Grid>
             </Border>
             
             <!-- Splitter -->
@@ -265,26 +280,7 @@
                             </GroupBox>
                             
                             <GroupBox Header="Contour Settings" Margin="0,0,0,8">
-                                <StackPanel Margin="8">
-                                    <TextBlock Text="Result Type:" Margin="0,0,0,4"/>
-                                    <ComboBox SelectedIndex="0" Margin="0,0,0,8">
-                                        <ComboBoxItem Content="Major Principal Stress"/>
-                                        <ComboBoxItem Content="Minor Principal Stress"/>
-                                        <ComboBoxItem Content="Displacement"/>
-                                        <ComboBoxItem Content="Strength Factor"/>
-                                    </ComboBox>
-                                    
-                                    <TextBlock Text="Color Map:" Margin="0,0,0,4"/>
-                                    <ComboBox SelectedIndex="0" Margin="0,0,0,8">
-                                        <ComboBoxItem Content="Viridis"/>
-                                        <ComboBoxItem Content="Plasma"/>
-                                        <ComboBoxItem Content="Hot to Cold"/>
-                                        <ComboBoxItem Content="Red to White"/>
-                                    </ComboBox>
-                                    
-                                    <TextBlock Text="Number of Intervals:" Margin="0,0,0,4"/>
-                                    <TextBox Text="10" Margin="0,0,0,8"/>
-                                </StackPanel>
+                                <local:ContourSettingsControl x:Name="PropertiesContourSettings" Margin="0"/>
                             </GroupBox>
                         </StackPanel>
                     </ScrollViewer>

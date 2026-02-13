@@ -6,7 +6,9 @@ using CAD2DModel.Geometry;
 using CAD2DModel.Interaction;
 using CAD2DModel.Interaction.Implementations.Modes;
 using CAD2DModel.Services;
+using CAD2DModel.Results;
 using CAD2DViewModels.ViewModels;
+using Examine2DView.Dialogs;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Examine2DView;
@@ -21,6 +23,7 @@ public partial class MainWindow : Window
     
     // Mode switching commands
     public System.Windows.Input.ICommand SelectModeCommand { get; }
+    public System.Windows.Input.ICommand AddExternalBoundaryModeCommand { get; }
     public System.Windows.Input.ICommand AddBoundaryModeCommand { get; }
     public System.Windows.Input.ICommand AddPolylineModeCommand { get; }
     public System.Windows.Input.ICommand MoveVertexModeCommand { get; }
@@ -38,6 +41,7 @@ public partial class MainWindow : Window
         
         // Initialize mode commands
         SelectModeCommand = new RelayCommand(EnterSelectMode);
+        AddExternalBoundaryModeCommand = new RelayCommand(EnterAddExternalBoundaryMode);
         AddBoundaryModeCommand = new RelayCommand(EnterAddBoundaryMode);
         AddPolylineModeCommand = new RelayCommand(EnterAddPolylineMode);
         MoveVertexModeCommand = new RelayCommand(EnterMoveVertexMode);
@@ -73,6 +77,23 @@ public partial class MainWindow : Window
         if (commandManager != null && selectionService != null && geometryModel != null)
         {
             var mode = new SelectMode(_modeManager, commandManager, selectionService, geometryModel);
+            _modeManager.EnterMode(mode);
+        }
+    }
+    
+    private void EnterAddExternalBoundaryMode()
+    {
+        if (_modeManager == null || _serviceProvider == null)
+            return;
+        
+        var commandManager = _serviceProvider.GetService<ICommandManager>();
+        var geometryModel = _serviceProvider.GetService<IGeometryModel>();
+        var snapService = _serviceProvider.GetService<ISnapService>();
+        
+        if (commandManager != null && geometryModel != null && snapService != null)
+        {
+            // Create mode that adds ExternalBoundary instead of regular Boundary
+            var mode = new AddExternalBoundaryMode(_modeManager, commandManager, geometryModel, snapService);
             _modeManager.EnterMode(mode);
         }
     }
@@ -272,14 +293,108 @@ public partial class MainWindow : Window
             {
                 // Sync model entities to canvas collections
                 SyncEntitiesToCanvas();
+                
+                // Regenerate contours if they're visible
+                var contourService = _serviceProvider.GetService<IContourService>();
+                if (contourService != null && contourService.Settings.IsVisible)
+                {
+                    contourService.InvalidateContours();
+                    RegenerateContours();
+                }
+            };
+            
+            // Subscribe to geometry changes for live preview updates
+            geometryModel.GeometryChanged += (s, e) =>
+            {
+                var contourService = _serviceProvider.GetService<IContourService>();
+                if (contourService != null && contourService.Settings.IsVisible)
+                {
+                    contourService.InvalidateContours();
+                    RegenerateContours();
+                }
             };
             
             // Initial sync
             SyncEntitiesToCanvas();
         }
         
+        // Subscribe to command execution to regenerate contours on any geometry change
+        var commandManager = _serviceProvider.GetService<ICommandManager>();
+        if (commandManager != null)
+        {
+            commandManager.CommandExecuted += (s, e) =>
+            {
+                // Regenerate contours after any command that might affect geometry
+                var contourService = _serviceProvider.GetService<IContourService>();
+                if (contourService != null && contourService.Settings.IsVisible)
+                {
+                    contourService.InvalidateContours();
+                    RegenerateContours();
+                }
+            };
+        }
+        
+        // Setup contour service
+        var contourService = _serviceProvider.GetService<IContourService>();
+        if (contourService != null)
+        {
+            CanvasControl.ContourService = contourService;
+            CanvasControl.GeometryModel = geometryModel; // Needed for excavation masking
+            
+            // Subscribe to contour updates to refresh legend
+            contourService.ContoursUpdated += (s, e) =>
+            {
+                if (contourService.CurrentContourData != null)
+                {
+                    ContourLegend.UpdateLegend(contourService.CurrentContourData, contourService.Settings);
+                }
+            };
+            
+            // Load initial settings into properties panel
+            PropertiesContourSettings.LoadSettings(contourService.Settings);
+            
+            // Subscribe to changes in the properties panel
+            PropertiesContourSettings.VisibilityCheck.Checked += PropertiesContourSettings_Changed;
+            PropertiesContourSettings.VisibilityCheck.Unchecked += PropertiesContourSettings_Changed;
+            PropertiesContourSettings.ResultFieldCombo.SelectionChanged += PropertiesContourSettings_Changed;
+            PropertiesContourSettings.ColorSchemeCombo.SelectionChanged += PropertiesContourSettings_Changed;
+            PropertiesContourSettings.LevelsSlider.ValueChanged += PropertiesContourSettings_Changed;
+            PropertiesContourSettings.ShowFilledCheck.Checked += PropertiesContourSettings_Changed;
+            PropertiesContourSettings.ShowFilledCheck.Unchecked += PropertiesContourSettings_Changed;
+            PropertiesContourSettings.ShowLinesCheck.Checked += PropertiesContourSettings_Changed;
+            PropertiesContourSettings.ShowLinesCheck.Unchecked += PropertiesContourSettings_Changed;
+            PropertiesContourSettings.OpacitySlider.ValueChanged += PropertiesContourSettings_Changed;
+        }
+        
         // Setup snap controls
         SetupSnapControls();
+    }
+    
+    private void PropertiesContourSettings_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_serviceProvider == null)
+            return;
+        
+        var contourService = _serviceProvider.GetService<IContourService>();
+        if (contourService == null)
+            return;
+        
+        // Save settings from the properties panel
+        PropertiesContourSettings.SaveSettings(contourService.Settings);
+        
+        // Regenerate contours if they're visible
+        if (contourService.Settings.IsVisible)
+        {
+            contourService.InvalidateContours();
+            RegenerateContours();
+            ContourLegend.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            ContourLegend.Visibility = Visibility.Collapsed;
+        }
+        
+        CanvasControl.InvalidateVisual();
     }
     
     private void SetupSnapControls()
@@ -462,5 +577,93 @@ public partial class MainWindow : Window
             SelectionCountText.Text = $"Selected: {string.Join(", ", parts)}";
             SelectionCountSeparator.Visibility = System.Windows.Visibility.Visible;
         }
+    }
+    
+    private void ContourSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (_serviceProvider == null)
+            return;
+        
+        var contourService = _serviceProvider.GetService<IContourService>();
+        if (contourService == null)
+        {
+            MessageBox.Show("Contour service is not available.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        
+        var dialog = new ContourSettingsDialog(contourService.Settings);
+        
+        // Subscribe to Apply button event
+        dialog.SettingsApplied += (s, args) =>
+        {
+            // Regenerate contours when Apply is clicked
+            if (contourService.Settings.IsVisible)
+            {
+                RegenerateContours();
+            }
+            else
+            {
+                ContourLegend.Visibility = Visibility.Collapsed;
+            }
+            CanvasControl.InvalidateVisual();
+        };
+        
+        if (dialog.ShowDialog() == true)
+        {
+            // Settings were saved, regenerate contours if visible
+            if (contourService.Settings.IsVisible)
+            {
+                RegenerateContours();
+            }
+            else
+            {
+                // Hide legend when contours are turned off
+                ContourLegend.Visibility = Visibility.Collapsed;
+            }
+            
+            CanvasControl.InvalidateVisual();
+        }
+    }
+    
+    private void RegenerateContours()
+    {
+        if (_serviceProvider == null)
+            return;
+        
+        var contourService = _serviceProvider.GetService<IContourService>();
+        var geometryModel = _serviceProvider.GetService<IGeometryModel>();
+        
+        if (contourService == null || geometryModel == null)
+            return;
+        
+        // Find external boundary
+        var externalBoundary = geometryModel.Entities
+            .OfType<ExternalBoundary>()
+            .FirstOrDefault();
+        
+        if (externalBoundary == null)
+        {
+            MessageBox.Show("Please create an External Boundary first.\n\n" +
+                          "Use Model → Create External Boundary to define the analysis region.",
+                          "External Boundary Required",
+                          MessageBoxButton.OK,
+                          MessageBoxImage.Information);
+            return;
+        }
+        
+        // Get excavation boundaries (regular boundaries, not external)
+        var excavations = geometryModel.Entities
+            .OfType<Boundary>()
+            .Where(b => b is not ExternalBoundary)
+            .ToList();
+        
+        // Generate contours
+        var contourData = contourService.GenerateContours(
+            externalBoundary,
+            excavations,
+            contourService.Settings.Field);
+        
+        // Update legend
+        ContourLegend.UpdateLegend(contourData, contourService.Settings);
     }
 }

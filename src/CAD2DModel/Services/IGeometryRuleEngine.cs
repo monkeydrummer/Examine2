@@ -83,4 +83,15 @@ public interface IGeometryModel
     /// Apply rules to a specific entity
     /// </summary>
     void ApplyRulesToEntity(IEntity entity);
+    
+    /// <summary>
+    /// Event raised when geometry changes (but collection doesn't change)
+    /// Used for live preview updates during moves
+    /// </summary>
+    event EventHandler? GeometryChanged;
+    
+    /// <summary>
+    /// Notify that geometry has changed (for live preview updates)
+    /// </summary>
+    void NotifyGeometryChanged();
 }
