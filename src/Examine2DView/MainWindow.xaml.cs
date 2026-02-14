@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     // Mode switching commands
     public System.Windows.Input.ICommand SelectModeCommand { get; }
     public System.Windows.Input.ICommand AddExternalBoundaryModeCommand { get; }
+    public System.Windows.Input.ICommand AutoExternalBoundaryCommand { get; }
     public System.Windows.Input.ICommand AddBoundaryModeCommand { get; }
     public System.Windows.Input.ICommand AddPolylineModeCommand { get; }
     public System.Windows.Input.ICommand MoveVertexModeCommand { get; }
@@ -51,6 +52,10 @@ public partial class MainWindow : Window
     public System.Windows.Input.ICommand ZoomOutCommand { get; }
     public System.Windows.Input.ICommand ZoomFitCommand { get; }
     
+    // Undo/Redo commands
+    public System.Windows.Input.ICommand UndoCommand { get; }
+    public System.Windows.Input.ICommand RedoCommand { get; }
+    
     public MainWindow()
     {
         InitializeComponent();
@@ -59,6 +64,7 @@ public partial class MainWindow : Window
         // Initialize mode commands
         SelectModeCommand = new RelayCommand(EnterSelectMode);
         AddExternalBoundaryModeCommand = new RelayCommand(EnterAddExternalBoundaryMode);
+        AutoExternalBoundaryCommand = new RelayCommand(CreateAutoExternalBoundary);
         AddBoundaryModeCommand = new RelayCommand(EnterAddBoundaryMode);
         AddPolylineModeCommand = new RelayCommand(EnterAddPolylineMode);
         MoveVertexModeCommand = new RelayCommand(EnterMoveVertexMode);
@@ -80,6 +86,10 @@ public partial class MainWindow : Window
         ZoomInCommand = new RelayCommand(ZoomIn);
         ZoomOutCommand = new RelayCommand(ZoomOut);
         ZoomFitCommand = new RelayCommand(ZoomFit);
+        
+        // Initialize undo/redo commands
+        UndoCommand = new RelayCommand(Undo);
+        RedoCommand = new RelayCommand(Redo);
         
         // DataContext will be set by DI container
     }
@@ -125,6 +135,127 @@ public partial class MainWindow : Window
             var mode = new AddExternalBoundaryMode(_modeManager, commandManager, geometryModel, snapService);
             _modeManager.EnterMode(mode);
         }
+    }
+    
+    private void CreateAutoExternalBoundary()
+    {
+        if (_serviceProvider == null)
+            return;
+        
+        var geometryModel = _serviceProvider.GetService<IGeometryModel>();
+        var commandManager = _serviceProvider.GetService<ICommandManager>();
+        
+        if (geometryModel == null || commandManager == null)
+            return;
+        
+        // Check if there's an existing external boundary
+        var existingExternalBoundary = geometryModel.Entities
+            .OfType<ExternalBoundary>()
+            .FirstOrDefault();
+        
+        if (existingExternalBoundary != null)
+        {
+            var result = MessageBox.Show(
+                "An external boundary already exists. Do you want to replace it?",
+                "Replace External Boundary",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            
+            if (result != MessageBoxResult.Yes)
+                return;
+        }
+        
+        // Get all non-external boundaries to calculate extents
+        var boundaries = geometryModel.Entities
+            .OfType<Boundary>()
+            .Where(b => b is not ExternalBoundary)
+            .ToList();
+        
+        if (boundaries.Count == 0)
+        {
+            MessageBox.Show(
+                "No geometry found to create an external boundary around.\n\n" +
+                "Create some boundaries first, then use this command to automatically create an external boundary.",
+                "No Geometry Found",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+        
+        // Show dialog to get user preferences
+        var dialog = new AutoExternalBoundaryDialog();
+        if (dialog.ShowDialog() != true)
+            return;
+        
+        // Calculate extents of all existing boundaries
+        var firstBounds = boundaries[0].GetBounds();
+        var bounds = firstBounds;
+        foreach (var boundary in boundaries.Skip(1))
+        {
+            bounds = bounds.Union(boundary.GetBounds());
+        }
+        
+        // Calculate the expansion based on user preferences
+        double expansionFactor = dialog.ExpansionFactor;
+        double minMargin = dialog.MinimumMargin;
+        
+        // Calculate margins based on expansion factor
+        double factorMarginX = (bounds.Width * expansionFactor - bounds.Width) / 2.0;
+        double factorMarginY = (bounds.Height * expansionFactor - bounds.Height) / 2.0;
+        
+        // Use the larger of the two margins (factor-based or minimum)
+        double marginX = Math.Max(factorMarginX, minMargin);
+        double marginY = Math.Max(factorMarginY, minMargin);
+        
+        // Create expanded bounds
+        // Note: In this coordinate system, Top < Bottom (Y increases downward)
+        double minX = bounds.Left - marginX;
+        double maxX = bounds.Right + marginX;
+        double minY = bounds.Top - marginY;      // Top is the smaller Y value
+        double maxY = bounds.Bottom + marginY;   // Bottom is the larger Y value
+        
+        // Remove existing external boundary if present
+        if (existingExternalBoundary != null)
+        {
+            geometryModel.RemoveEntity(existingExternalBoundary);
+        }
+        
+        // Create the new external boundary
+        var externalBoundary = new ExternalBoundary
+        {
+            Name = "External Boundary",
+            IsClosed = true,
+            MeshResolution = Math.Min((maxX - minX) / 50.0, (maxY - minY) / 50.0) // Adaptive mesh resolution
+        };
+        
+        // Add vertices in counter-clockwise order
+        externalBoundary.AddVertex(new Point2D(minX, minY));
+        externalBoundary.AddVertex(new Point2D(maxX, minY));
+        externalBoundary.AddVertex(new Point2D(maxX, maxY));
+        externalBoundary.AddVertex(new Point2D(minX, maxY));
+        
+        // Create command for undo/redo - this will add the entity to the model
+        var command = new CAD2DModel.Commands.Implementations.AddEntityCommand(geometryModel, externalBoundary);
+        commandManager.Execute(command);
+        
+        // Apply rules after adding to model
+        geometryModel.ApplyRulesToEntity(externalBoundary);
+        
+        // Zoom to fit the new boundary
+        ZoomFit();
+        
+        // Show success message
+        MessageBox.Show(
+            $"External boundary created successfully.\n\n" +
+            $"Expansion: {expansionFactor:F1}x\n" +
+            $"Margin: X={marginX:F2}m, Y={marginY:F2}m\n" +
+            $"Size: {(maxX - minX):F2}m × {(maxY - minY):F2}m",
+            "Auto External Boundary",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+        
+        // Refresh the canvas (already done by ZoomFit, but doesn't hurt)
+        CanvasControl.InvalidateVisual();
     }
     
     private void EnterAddBoundaryMode()
@@ -324,13 +455,37 @@ public partial class MainWindow : Window
         CanvasControl.InvalidateVisual();
     }
     
+    private void Undo()
+    {
+        if (_serviceProvider == null)
+            return;
+        
+        var commandManager = _serviceProvider.GetService<ICommandManager>();
+        if (commandManager != null && commandManager.CanUndo)
+        {
+            commandManager.Undo();
+            CanvasControl?.InvalidateVisual();
+        }
+    }
+    
+    private void Redo()
+    {
+        if (_serviceProvider == null)
+            return;
+        
+        var commandManager = _serviceProvider.GetService<ICommandManager>();
+        if (commandManager != null && commandManager.CanRedo)
+        {
+            commandManager.Redo();
+            CanvasControl?.InvalidateVisual();
+        }
+    }
+    
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         // Set up canvas with mode manager
         SetupCanvas();
-        
-        // Add sample geometry to demonstrate rendering
-        CreateSampleGeometry();
+      
     }
     
     private void SetupCanvas()

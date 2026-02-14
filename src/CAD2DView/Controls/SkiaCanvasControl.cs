@@ -754,6 +754,11 @@ public class SkiaCanvasControl : UserControl
             System.Windows.Input.Key.Back => CAD2DModel.Interaction.Key.Backspace,
             System.Windows.Input.Key.Space => CAD2DModel.Interaction.Key.Space,
             System.Windows.Input.Key.Tab => CAD2DModel.Interaction.Key.Tab,
+            // Letter keys for mode shortcuts
+            System.Windows.Input.Key.A => CAD2DModel.Interaction.Key.A,
+            System.Windows.Input.Key.C => CAD2DModel.Interaction.Key.C,
+            System.Windows.Input.Key.L => CAD2DModel.Interaction.Key.L,
+            System.Windows.Input.Key.U => CAD2DModel.Interaction.Key.U,
             _ => CAD2DModel.Interaction.Key.None
         };
     }

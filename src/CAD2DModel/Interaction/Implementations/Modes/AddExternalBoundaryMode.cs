@@ -157,11 +157,10 @@ public class AddExternalBoundaryMode : InteractionModeBase
                     _currentBoundary.AddVertex(p);
                 }
                 
-                // Add to model and apply rules
-                _geometryModel.AddEntity(_currentBoundary);
+                // Apply rules to the boundary
                 _geometryModel.ApplyRulesToEntity(_currentBoundary);
                 
-                // Create command for undo/redo
+                // Add to model through command manager for proper undo/redo support
                 var command = new AddEntityCommand(_geometryModel, _currentBoundary);
                 _commandManager.Execute(command);
                 

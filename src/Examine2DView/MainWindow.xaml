@@ -11,6 +11,10 @@
         WindowState="Maximized">
     
     <Window.InputBindings>
+        <KeyBinding Key="Z" Modifiers="Ctrl" 
+                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=UndoCommand}"/>
+        <KeyBinding Key="Y" Modifiers="Ctrl" 
+                    Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=RedoCommand}"/>
         <KeyBinding Key="OemPlus" Modifiers="Ctrl" 
                     Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ZoomInCommand}"/>
         <KeyBinding Key="Add" Modifiers="Ctrl" 
@@ -47,8 +51,10 @@
             </MenuItem>
             
             <MenuItem Header="_Edit">
-                <MenuItem Header="_Undo" InputGestureText="Ctrl+Z"/>
-                <MenuItem Header="_Redo" InputGestureText="Ctrl+Y"/>
+                <MenuItem Header="_Undo" InputGestureText="Ctrl+Z" 
+                          Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=UndoCommand}"/>
+                <MenuItem Header="_Redo" InputGestureText="Ctrl+Y" 
+                          Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=RedoCommand}"/>
                 <Separator/>
                 <MenuItem Header="Cu_t" InputGestureText="Ctrl+X"/>
                 <MenuItem Header="_Copy" InputGestureText="Ctrl+C"/>
@@ -70,6 +76,7 @@
             
             <MenuItem Header="_Model">
                 <MenuItem Header="Create _External Boundary" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddExternalBoundaryModeCommand}"/>
+                <MenuItem Header="Create _Auto External Boundary..." Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AutoExternalBoundaryCommand}"/>
                 <MenuItem Header="Create _Boundary" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddBoundaryModeCommand}"/>
                 <MenuItem Header="Create _Polyline" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddPolylineModeCommand}"/>
                 <Separator/>
@@ -122,8 +129,10 @@
                 <Button Content="Open" ToolTip="Open Project" Command="{Binding OpenProjectCommand}"/>
                 <Button Content="Save" ToolTip="Save Project" Command="{Binding SaveProjectCommand}"/>
                 <Separator/>
-                <Button Content="Undo" ToolTip="Undo (Ctrl+Z)"/>
-                <Button Content="Redo" ToolTip="Redo (Ctrl+Y)"/>
+                <Button Content="Undo" ToolTip="Undo (Ctrl+Z)" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=UndoCommand}"/>
+                <Button Content="Redo" ToolTip="Redo (Ctrl+Y)" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=RedoCommand}"/>
             </ToolBar>
             
             <ToolBar>
@@ -131,6 +140,8 @@
                         Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SelectModeCommand}"/>
                 <Button Content="External Boundary" ToolTip="Create External Boundary" 
                         Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddExternalBoundaryModeCommand}"/>
+                <Button Content="Auto External..." ToolTip="Auto Create External Boundary" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AutoExternalBoundaryCommand}"/>
                 <Button Content="Boundary" ToolTip="Create Boundary" 
                         Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddBoundaryModeCommand}"/>
                 <Button Content="Polyline" ToolTip="Create Polyline" 
