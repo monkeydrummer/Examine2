@@ -7,6 +7,8 @@ using CAD2DModel.Geometry;
 using CAD2DModel.Interaction;
 using CAD2DModel.Services;
 using CAD2DModel.Results;
+using CAD2DModel.Rendering;
+using CAD2DView.Rendering;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using SkiaSharp.Views.WPF;
@@ -28,6 +30,11 @@ public class SkiaCanvasControl : UserControl
     private IContourService? _contourService;
     private IGeometryModel? _geometryModel;
     private ColorMapper _colorMapper = new ColorMapper();
+    
+    // Ruler rendering
+    private readonly RulerRenderer _rulerRenderer = new();
+    private readonly RulerConfiguration _rulerConfig = new();
+    private SKPoint? _lastMouseScreenPos = null;
     
     // Cached contour rendering data (regenerated only when contours change)
     private SKColor[]? _cachedContourColors;
@@ -177,6 +184,16 @@ public class SkiaCanvasControl : UserControl
         }
     }
     
+    public bool IsRulerVisible
+    {
+        get => _rulerConfig.IsVisible;
+        set
+        {
+            _rulerConfig.IsVisible = value;
+            InvalidateVisual();
+        }
+    }
+    
     public new void InvalidateVisual()
     {
         _skElement.InvalidateVisual();
@@ -215,6 +232,12 @@ public class SkiaCanvasControl : UserControl
             // Create a simple render context
             var renderContext = new SkiaRenderContext(canvas, _camera);
             _modeManager.CurrentMode.Render(renderContext);
+        }
+        
+        // Draw ruler LAST (on top of everything)
+        if (_rulerConfig.IsVisible)
+        {
+            _rulerRenderer.Render(canvas, _camera, _rulerConfig, _lastMouseScreenPos);
         }
     }
     
@@ -476,10 +499,13 @@ public class SkiaCanvasControl : UserControl
         if (_camera == null)
             return;
         
-        // Always update mouse position for status bar
+        // Always update mouse position for status bar and ruler crosshair
         var screenPos = e.GetPosition(this);
         var worldPos = _camera.ScreenToWorld(new CAD2DModel.Camera.Point(screenPos.X, screenPos.Y));
         MousePositionChanged?.Invoke(this, worldPos);
+        
+        // Update mouse position for ruler crosshair
+        _lastMouseScreenPos = new SKPoint((float)screenPos.X, (float)screenPos.Y);
         
         if (_isPanning)
         {
