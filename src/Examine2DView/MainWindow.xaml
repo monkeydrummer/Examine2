@@ -86,7 +86,7 @@
                 <Separator/>
                 <MenuItem Header="_Contour Settings..." Click="ContourSettings_Click"/>
                 <Separator/>
-                <MenuItem Header="Analysis _Settings..."/>
+                <MenuItem Header="Analysis _Settings..." Click="AnalysisSettings_Click"/>
                 <MenuItem Header="_Material Properties..."/>
                 <MenuItem Header="_Strength Criteria..."/>
             </MenuItem>
@@ -258,25 +258,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="8">
                             <GroupBox Header="Analysis Settings" Margin="0,0,0,8">
-                                <StackPanel Margin="8">
-                                    <TextBlock Text="Plane Strain Type:" Margin="0,0,0,4"/>
-                                    <ComboBox SelectedIndex="0" Margin="0,0,0,8">
-                                        <ComboBoxItem Content="Plane Strain"/>
-                                        <ComboBoxItem Content="Complete Plane Strain"/>
-                                    </ComboBox>
-                                    
-                                    <TextBlock Text="Element Type:" Margin="0,0,0,4"/>
-                                    <ComboBox SelectedIndex="1" Margin="0,0,0,8">
-                                        <ComboBoxItem Content="Constant"/>
-                                        <ComboBoxItem Content="Linear"/>
-                                        <ComboBoxItem Content="Quadratic"/>
-                                    </ComboBox>
-                                    
-                                    <TextBlock Text="Number of Elements:" Margin="0,0,0,4"/>
-                                    <TextBox Text="100" Margin="0,0,0,8"/>
-                                    
-                                    <Button Content="Run Analysis" Padding="8,4" Margin="0,8,0,0"/>
-                                </StackPanel>
+                                <local:AnalysisSettingsControl x:Name="PropertiesAnalysisSettings" Margin="0"/>
                             </GroupBox>
                             
                             <GroupBox Header="Contour Settings" Margin="0,0,0,8">

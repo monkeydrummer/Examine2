@@ -1,4 +1,6 @@
+using CAD2DModel.Services;
 using Examine2DModel.Analysis;
+using Examine2DModel.BEM;
 using Examine2DModel.Contours;
 using Examine2DModel.Materials;
 using Examine2DModel.Query;
@@ -17,11 +19,15 @@ public static class ServiceConfiguration
     /// </summary>
     public static IServiceCollection AddExamine2DServices(this IServiceCollection services)
     {
-        // Analysis services
-        services.AddSingleton<IBoundaryElementSolver, BoundaryElementSolver>();
-        services.AddSingleton<IMatrixSolver, MatrixSolver>();
+        // Analysis services - using transient for BEM solver since it needs material properties
+        // Material will be provided at runtime when creating the solver
+        services.AddTransient<IMatrixSolver, MatrixSolverService>();
         
-        // Contour generation
+        // Note: IBoundaryElementSolver is created on-demand with specific material properties
+        // rather than registered in DI. Use BoundaryElementSolver constructor directly.
+        
+        // Contour generation - Real BEM-based implementation
+        services.AddSingleton<IContourService, Services.ContourService>();
         services.AddSingleton<IContourGenerator, ContourGenerator>();
         
         // Query services
@@ -29,20 +35,6 @@ public static class ServiceConfiguration
         
         return services;
     }
-}
-
-// Placeholder implementations for compilation
-internal class BoundaryElementSolver : IBoundaryElementSolver
-{
-    public Stress.StressField Solve(BoundaryConfiguration config, SolverOptions options) => throw new NotImplementedException();
-    public Task<Stress.StressField> SolveAsync(BoundaryConfiguration config, SolverOptions options, CancellationToken cancellationToken = default) => throw new NotImplementedException();
-    public bool CanSolve(BoundaryConfiguration config) => throw new NotImplementedException();
-}
-
-internal class MatrixSolver : IMatrixSolver
-{
-    public double[] Solve(double[,] A, double[] b) => throw new NotImplementedException();
-    public double[] SolveSparse(SparseMatrix A, double[] b) => throw new NotImplementedException();
 }
 
 internal class ContourGenerator : IContourGenerator

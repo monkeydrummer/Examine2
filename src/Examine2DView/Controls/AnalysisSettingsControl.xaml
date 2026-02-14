@@ -1,0 +1,131 @@
+<UserControl x:Class="Examine2DView.Controls.AnalysisSettingsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="400"
+             Background="White">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="180"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Plane Strain Type -->
+        <TextBlock Grid.Row="0" Grid.Column="0" 
+                   Text="Plane Strain Type:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,0,10"/>
+        <ComboBox Grid.Row="0" Grid.Column="1" 
+                  x:Name="PlaneStrainTypeCombo"
+                  Margin="0,0,0,10">
+            <ComboBoxItem Content="Plane Strain" Tag="PlaneStrain"/>
+            <ComboBoxItem Content="Complete Plane Strain" Tag="CompletePlaneStrain"/>
+        </ComboBox>
+
+        <!-- Element Type -->
+        <TextBlock Grid.Row="1" Grid.Column="0" 
+                   Text="Element Type:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,0,10"/>
+        <ComboBox Grid.Row="1" Grid.Column="1" 
+                  x:Name="ElementTypeCombo"
+                  Margin="0,0,0,10">
+            <ComboBoxItem Content="Constant" Tag="Constant"/>
+            <ComboBoxItem Content="Linear" Tag="Linear"/>
+            <ComboBoxItem Content="Quadratic" Tag="Quadratic"/>
+        </ComboBox>
+
+        <!-- BEM Element Discretization Section -->
+        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                   Text="Boundary Element Discretization"
+                   FontWeight="Bold"
+                   Margin="0,10,0,10"/>
+
+        <!-- Target Element Count Slider -->
+        <TextBlock Grid.Row="3" Grid.Column="0" 
+                   Text="Target Element Count:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,0,10"/>
+        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+            <Slider x:Name="TargetElementCountSlider" 
+                    Width="150" 
+                    Minimum="50" 
+                    Maximum="500" 
+                    TickFrequency="10"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center"
+                    ValueChanged="TargetElementCountSlider_ValueChanged"/>
+            <TextBox x:Name="TargetElementCountTextBox"
+                     Width="60"
+                     Margin="10,0,0,0"
+                     VerticalAlignment="Center"
+                     TextAlignment="Right"
+                     PreviewTextInput="NumericTextBox_PreviewTextInput"
+                     TextChanged="TargetElementCountTextBox_TextChanged"/>
+        </StackPanel>
+
+        <!-- Real-time Preview Info -->
+        <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                   x:Name="ElementCountPreview"
+                   Text="Approximate solve time: ~0.3 seconds"
+                   FontStyle="Italic"
+                   Foreground="Gray"
+                   Margin="0,0,0,10"
+                   TextWrapping="Wrap"/>
+
+        <!-- Adaptive Element Sizing -->
+        <CheckBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                  x:Name="UseAdaptiveElementSizingCheck"
+                  Content="Use Adaptive Element Sizing (denser at corners)"
+                  Margin="0,0,0,10"
+                  IsChecked="True"
+                  Checked="AdaptiveSizingOptions_Changed"
+                  Unchecked="AdaptiveSizingOptions_Changed"/>
+
+        <!-- Maximum Refinement Factor -->
+        <TextBlock Grid.Row="6" Grid.Column="0" 
+                   Text="Max Refinement Factor:"
+                   VerticalAlignment="Center"
+                   Margin="0,0,0,10"/>
+        <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,10">
+            <Slider x:Name="MaxRefinementFactorSlider" 
+                    Width="150" 
+                    Minimum="1.0" 
+                    Maximum="8.0" 
+                    TickFrequency="0.5"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center"
+                    ValueChanged="MaxRefinementFactorSlider_ValueChanged"/>
+            <TextBlock Text="{Binding ElementName=MaxRefinementFactorSlider, Path=Value, StringFormat='{}{0:F1}x'}" 
+                       Margin="10,0,0,0"
+                       VerticalAlignment="Center"
+                       MinWidth="40"/>
+        </StackPanel>
+
+        <!-- Solver Settings Section -->
+        <TextBlock Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2"
+                   Text="Solver Settings"
+                   FontWeight="Bold"
+                   Margin="0,10,0,10"/>
+
+        <!-- Enable Caching -->
+        <CheckBox Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2"
+                  x:Name="EnableCachingCheck"
+                  Content="Enable Matrix and Solution Caching (recommended for interactive use)"
+                  Margin="0,0,0,10"
+                  IsChecked="True"/>
+    </Grid>
+</UserControl>

@@ -40,6 +40,11 @@ public class ContourData
     public double MaxValue { get; set; }
     
     /// <summary>
+    /// Excavation boundaries to be masked (drawn as white polygons on top)
+    /// </summary>
+    public List<Boundary> ExcavationsToMask { get; set; } = new();
+    
+    /// <summary>
     /// Timestamp when this data was generated
     /// </summary>
     public DateTime GeneratedAt { get; set; } = DateTime.Now;

@@ -23,7 +23,9 @@ public static class ServiceConfiguration
         services.AddSingleton<ISelectionService, SelectionService>();
         services.AddTransient(typeof(ISpatialIndex<>), typeof(SpatialIndex<>));
         
-        // Contour service (mock implementation for now)
+        // Contour service (real BEM-based implementation)
+        // NOTE: The concrete implementation (Examine2DModel.Services.ContourService) must be registered
+        // in the application's DI container. This placeholder registration can be overridden.
         services.AddSingleton<IContourService, MockContourService>();
         
         // Geometry rule engine and model

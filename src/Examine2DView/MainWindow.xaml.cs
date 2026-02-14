@@ -9,6 +9,7 @@ using CAD2DModel.Services;
 using CAD2DModel.Results;
 using CAD2DViewModels.ViewModels;
 using Examine2DView.Dialogs;
+using Examine2DModel.BEM;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Examine2DView;
@@ -20,6 +21,9 @@ public partial class MainWindow : Window
 {
     private readonly IServiceProvider? _serviceProvider;
     private IModeManager? _modeManager;
+    
+    // BEM Configuration for analysis settings
+    private readonly BEMConfiguration _bemConfiguration = new BEMConfiguration();
     
     // Mode switching commands
     public System.Windows.Input.ICommand SelectModeCommand { get; }
@@ -366,6 +370,9 @@ public partial class MainWindow : Window
             PropertiesContourSettings.OpacitySlider.ValueChanged += PropertiesContourSettings_Changed;
         }
         
+        // Load initial BEM configuration into properties panel
+        PropertiesAnalysisSettings.LoadSettings(_bemConfiguration);
+        
         // Setup snap controls
         SetupSnapControls();
     }
@@ -506,11 +513,12 @@ public partial class MainWindow : Window
         // Update selection count display
         UpdateSelectionCountDisplay();
         
-        // Create external boundary box
-        var externalBox = new Boundary
+        // Create external boundary box for BEM analysis
+        var externalBox = new ExternalBoundary
         {
-            Name = "External Box",
-            IsClosed = true
+            Name = "External Boundary",
+            IsClosed = true,
+            MeshResolution = 2.0  // 2 units spacing for contour grid
         };
         
         externalBox.AddVertex(new Point2D(-15, -15));
@@ -622,6 +630,43 @@ public partial class MainWindow : Window
             }
             
             CanvasControl.InvalidateVisual();
+        }
+    }
+    
+    private void AnalysisSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new AnalysisSettingsDialog(_bemConfiguration);
+        
+        // Subscribe to Apply button event
+        dialog.SettingsApplied += (s, args) =>
+        {
+            // Invalidate any cached BEM results when settings change
+            if (_serviceProvider != null)
+            {
+                var contourService = _serviceProvider.GetService<IContourService>();
+                if (contourService != null && contourService.Settings.IsVisible)
+                {
+                    contourService.InvalidateContours();
+                    RegenerateContours();
+                    CanvasControl.InvalidateVisual();
+                }
+            }
+        };
+        
+        if (dialog.ShowDialog() == true)
+        {
+            // Settings were saved
+            // Invalidate any cached BEM results when settings change
+            if (_serviceProvider != null)
+            {
+                var contourService = _serviceProvider.GetService<IContourService>();
+                if (contourService != null && contourService.Settings.IsVisible)
+                {
+                    contourService.InvalidateContours();
+                    RegenerateContours();
+                    CanvasControl.InvalidateVisual();
+                }
+            }
         }
     }
     
