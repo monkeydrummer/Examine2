@@ -91,6 +91,56 @@ public interface IModeManager
     void PopMode();
     
     /// <summary>
+    /// Enter idle mode (convenience method)
+    /// </summary>
+    void EnterIdleMode();
+    
+    /// <summary>
+    /// Enter add ruler mode
+    /// </summary>
+    void EnterAddRulerMode();
+    
+    /// <summary>
+    /// Enter add arrow mode
+    /// </summary>
+    void EnterAddArrowMode();
+    
+    /// <summary>
+    /// Enter add line mode
+    /// </summary>
+    void EnterAddLineMode();
+    
+    /// <summary>
+    /// Enter add dimension mode
+    /// </summary>
+    void EnterAddDimensionMode();
+    
+    /// <summary>
+    /// Enter add angular dimension mode
+    /// </summary>
+    void EnterAddAngularDimensionMode();
+    
+    /// <summary>
+    /// Enter add rectangle mode
+    /// </summary>
+    void EnterAddRectangleMode();
+    
+    /// <summary>
+    /// Enter add circle mode
+    /// </summary>
+    void EnterAddCircleMode();
+    
+    /// <summary>
+    /// Enter add ellipse mode
+    /// </summary>
+    void EnterAddEllipseMode();
+    
+    /// <summary>
+    /// Enter add text mode
+    /// </summary>
+    void EnterAddTextMode(string text = "Sample Text");
+    
+    /// <summary>
     /// Event raised when mode changes
     /// </summary>
     event EventHandler<ModeChangedEventArgs>? ModeChanged;

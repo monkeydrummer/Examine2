@@ -36,6 +36,9 @@ public class SkiaCanvasControl : UserControl
     private readonly RulerConfiguration _rulerConfig = new();
     private SKPoint? _lastMouseScreenPos = null;
     
+    // Annotation rendering
+    private readonly AnnotationRenderer _annotationRenderer = new();
+    
     // Cached contour rendering data (regenerated only when contours change)
     private SKColor[]? _cachedContourColors;
     private ContourData? _lastRenderedContourData;
@@ -151,7 +154,25 @@ public class SkiaCanvasControl : UserControl
     public IGeometryModel? GeometryModel
     {
         get => _geometryModel;
-        set => _geometryModel = value;
+        set
+        {
+            if (_geometryModel != null && _geometryModel.Annotations != null)
+            {
+                _geometryModel.Annotations.CollectionChanged -= OnAnnotationsChanged;
+            }
+            
+            _geometryModel = value;
+            
+            if (_geometryModel != null && _geometryModel.Annotations != null)
+            {
+                _geometryModel.Annotations.CollectionChanged += OnAnnotationsChanged;
+            }
+        }
+    }
+    
+    private void OnAnnotationsChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        InvalidateVisual(); // Redraw when annotations change
     }
     
     private void OnContoursUpdated(object? sender, EventArgs e)
@@ -225,6 +246,13 @@ public class SkiaCanvasControl : UserControl
         // Draw geometry entities
         DrawPolylines(canvas);
         DrawBoundaries(canvas);
+        
+        // Draw annotations (after geometry but before mode overlays)
+        if (_geometryModel != null)
+        {
+            var renderContext = new SkiaRenderContext(canvas, _camera);
+            _annotationRenderer.RenderAnnotations(_geometryModel.Annotations, renderContext);
+        }
         
         // Draw mode overlays (selection box, temporary geometry, etc.)
         if (_modeManager != null)
@@ -1102,5 +1130,247 @@ internal class SkiaRenderContext : IRenderContext
                 Canvas.DrawLine(x - size/2, y + size/2, x + size/2, y - size/2, paint);
                 break;
         }
+    }
+    
+    public void DrawText(string text, Point2D worldPosition, float fontSize, string fontFamily, 
+                         byte r, byte g, byte b, double rotationDegrees = 0, bool bold = false, 
+                         bool italic = false, bool drawBackground = false, byte bgR = 255, byte bgG = 255, 
+                         byte bgB = 255, byte bgA = 200)
+    {
+        var screenPos = Camera.WorldToScreen(worldPosition);
+        
+        var fontStyle = SKFontStyle.Normal;
+        if (bold && italic)
+            fontStyle = SKFontStyle.BoldItalic;
+        else if (bold)
+            fontStyle = SKFontStyle.Bold;
+        else if (italic)
+            fontStyle = SKFontStyle.Italic;
+        
+        using var typeface = SKTypeface.FromFamilyName(fontFamily, fontStyle);
+        using var paint = new SKPaint
+        {
+            Typeface = typeface,
+            TextSize = fontSize,
+            Color = new SKColor(r, g, b),
+            IsAntialias = true,
+            TextAlign = SKTextAlign.Left
+        };
+        
+        // Measure text for background
+        var textBounds = new SKRect();
+        paint.MeasureText(text, ref textBounds);
+        
+        Canvas.Save();
+        
+        // Apply rotation
+        if (Math.Abs(rotationDegrees) > 0.001)
+        {
+            Canvas.RotateDegrees((float)rotationDegrees, (float)screenPos.X, (float)screenPos.Y);
+        }
+        
+        // Draw background if requested
+        if (drawBackground)
+        {
+            using var bgPaint = new SKPaint
+            {
+                Color = new SKColor(bgR, bgG, bgB, bgA),
+                Style = SKPaintStyle.Fill,
+                IsAntialias = true
+            };
+            
+            var bgRect = new SKRect(
+                (float)screenPos.X + textBounds.Left - 2,
+                (float)screenPos.Y + textBounds.Top - 2,
+                (float)screenPos.X + textBounds.Right + 2,
+                (float)screenPos.Y + textBounds.Bottom + 2
+            );
+            Canvas.DrawRect(bgRect, bgPaint);
+        }
+        
+        // Draw text
+        Canvas.DrawText(text, (float)screenPos.X, (float)screenPos.Y, paint);
+        
+        Canvas.Restore();
+    }
+    
+    public void DrawRectangle(Point2D worldTopLeft, Point2D worldBottomRight, byte r, byte g, byte b, 
+                             float strokeWidth = 1, bool filled = false, byte fillR = 128, byte fillG = 128, 
+                             byte fillB = 128, byte fillA = 100)
+    {
+        var screenTopLeft = Camera.WorldToScreen(worldTopLeft);
+        var screenBottomRight = Camera.WorldToScreen(worldBottomRight);
+        
+        var rect = SKRect.Create(
+            (float)screenTopLeft.X,
+            (float)screenTopLeft.Y,
+            (float)(screenBottomRight.X - screenTopLeft.X),
+            (float)(screenBottomRight.Y - screenTopLeft.Y)
+        );
+        
+        if (filled)
+        {
+            using var fillPaint = new SKPaint
+            {
+                Color = new SKColor(fillR, fillG, fillB, fillA),
+                Style = SKPaintStyle.Fill,
+                IsAntialias = true
+            };
+            Canvas.DrawRect(rect, fillPaint);
+        }
+        
+        using var strokePaint = new SKPaint
+        {
+            Color = new SKColor(r, g, b),
+            StrokeWidth = strokeWidth,
+            Style = SKPaintStyle.Stroke,
+            IsAntialias = true
+        };
+        Canvas.DrawRect(rect, strokePaint);
+    }
+    
+    public void DrawRectangle(Point2D worldTopLeft, double width, double height, byte r, byte g, byte b, 
+                             float strokeWidth = 1, bool filled = false, byte fillR = 128, byte fillG = 128, 
+                             byte fillB = 128, byte fillA = 100)
+    {
+        var worldBottomRight = new Point2D(worldTopLeft.X + width, worldTopLeft.Y + height);
+        DrawRectangle(worldTopLeft, worldBottomRight, r, g, b, strokeWidth, filled, fillR, fillG, fillB, fillA);
+    }
+    
+    public void DrawCircle(Point2D worldCenter, double worldRadius, byte r, byte g, byte b, 
+                          float strokeWidth = 1, bool filled = false, byte fillR = 128, byte fillG = 128, 
+                          byte fillB = 128, byte fillA = 100)
+    {
+        var screenCenter = Camera.WorldToScreen(worldCenter);
+        var screenRadiusPoint = Camera.WorldToScreen(new Point2D(worldCenter.X + worldRadius, worldCenter.Y));
+        float screenRadius = (float)Math.Abs(screenRadiusPoint.X - screenCenter.X);
+        
+        if (filled)
+        {
+            using var fillPaint = new SKPaint
+            {
+                Color = new SKColor(fillR, fillG, fillB, fillA),
+                Style = SKPaintStyle.Fill,
+                IsAntialias = true
+            };
+            Canvas.DrawCircle((float)screenCenter.X, (float)screenCenter.Y, screenRadius, fillPaint);
+        }
+        
+        using var strokePaint = new SKPaint
+        {
+            Color = new SKColor(r, g, b),
+            StrokeWidth = strokeWidth,
+            Style = SKPaintStyle.Stroke,
+            IsAntialias = true
+        };
+        Canvas.DrawCircle((float)screenCenter.X, (float)screenCenter.Y, screenRadius, strokePaint);
+    }
+    
+    public void DrawArc(Point2D worldCenter, double worldRadius, double startAngleDegrees, 
+                       double sweepAngleDegrees, byte r, byte g, byte b, float strokeWidth = 1)
+    {
+        var screenCenter = Camera.WorldToScreen(worldCenter);
+        var screenRadiusPoint = Camera.WorldToScreen(new Point2D(worldCenter.X + worldRadius, worldCenter.Y));
+        float screenRadius = (float)Math.Abs(screenRadiusPoint.X - screenCenter.X);
+        
+        var rect = new SKRect(
+            (float)screenCenter.X - screenRadius,
+            (float)screenCenter.Y - screenRadius,
+            (float)screenCenter.X + screenRadius,
+            (float)screenCenter.Y + screenRadius
+        );
+        
+        using var paint = new SKPaint
+        {
+            Color = new SKColor(r, g, b),
+            StrokeWidth = strokeWidth,
+            Style = SKPaintStyle.Stroke,
+            IsAntialias = true
+        };
+        
+        using var path = new SKPath();
+        path.AddArc(rect, (float)startAngleDegrees, (float)sweepAngleDegrees);
+        Canvas.DrawPath(path, paint);
+    }
+    
+    public void DrawArrowHead(Point2D worldLineStart, Point2D worldLineEnd, byte r, byte g, byte b, 
+                             double arrowSize = 10.0, bool filled = true)
+    {
+        var screenStart = Camera.WorldToScreen(worldLineStart);
+        var screenEnd = Camera.WorldToScreen(worldLineEnd);
+        
+        // Calculate arrow direction
+        double dx = screenEnd.X - screenStart.X;
+        double dy = screenEnd.Y - screenStart.Y;
+        double length = Math.Sqrt(dx * dx + dy * dy);
+        
+        if (length < 0.001) return; // Too short to draw arrow
+        
+        // Normalize direction
+        dx /= length;
+        dy /= length;
+        
+        // Arrow points (perpendicular to line direction)
+        double perpX = -dy;
+        double perpY = dx;
+        
+        // Calculate arrow head points
+        float tipX = (float)screenEnd.X;
+        float tipY = (float)screenEnd.Y;
+        float baseX = (float)(screenEnd.X - dx * arrowSize);
+        float baseY = (float)(screenEnd.Y - dy * arrowSize);
+        float side1X = (float)(baseX + perpX * arrowSize * 0.5);
+        float side1Y = (float)(baseY + perpY * arrowSize * 0.5);
+        float side2X = (float)(baseX - perpX * arrowSize * 0.5);
+        float side2Y = (float)(baseY - perpY * arrowSize * 0.5);
+        
+        using var path = new SKPath();
+        path.MoveTo(tipX, tipY);
+        path.LineTo(side1X, side1Y);
+        path.LineTo(side2X, side2Y);
+        path.Close();
+        
+        using var paint = new SKPaint
+        {
+            Color = new SKColor(r, g, b),
+            Style = filled ? SKPaintStyle.Fill : SKPaintStyle.Stroke,
+            StrokeWidth = 1f,
+            IsAntialias = true
+        };
+        
+        Canvas.DrawPath(path, paint);
+    }
+    
+    public void DrawControlPoint(Point2D worldPosition, byte r = 0, byte g = 100, byte b = 255, 
+                                bool highlighted = false)
+    {
+        var screenPos = Camera.WorldToScreen(worldPosition);
+        float size = highlighted ? 6f : 4f;
+        
+        // Draw filled square for control point
+        using var fillPaint = new SKPaint
+        {
+            Color = new SKColor(255, 255, 255), // White fill
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+        
+        var rect = new SKRect(
+            (float)screenPos.X - size,
+            (float)screenPos.Y - size,
+            (float)screenPos.X + size,
+            (float)screenPos.Y + size
+        );
+        Canvas.DrawRect(rect, fillPaint);
+        
+        // Draw border
+        using var strokePaint = new SKPaint
+        {
+            Color = new SKColor(r, g, b),
+            StrokeWidth = highlighted ? 2f : 1.5f,
+            Style = SKPaintStyle.Stroke,
+            IsAntialias = true
+        };
+        Canvas.DrawRect(rect, strokePaint);
     }
 }

@@ -1,5 +1,6 @@
 using CAD2DModel.Geometry;
 using CAD2DModel.Services;
+using CAD2DModel.Annotations;
 using System.Collections.ObjectModel;
 
 namespace CAD2DModel.Services.Implementations;
@@ -10,9 +11,12 @@ namespace CAD2DModel.Services.Implementations;
 public class GeometryModel : IGeometryModel
 {
     private readonly ObservableCollection<IEntity> _entities = new();
+    private readonly ObservableCollection<IAnnotation> _annotations = new();
     private IGeometryRuleEngine? _ruleEngine;
     
     public ObservableCollection<IEntity> Entities => _entities;
+    
+    public ObservableCollection<IAnnotation> Annotations => _annotations;
     
     public event EventHandler? GeometryChanged;
     

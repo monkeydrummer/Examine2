@@ -1,6 +1,7 @@
 using CAD2DModel.Geometry;
 using CAD2DModel.Services;
 using CAD2DModel.Camera;
+using CAD2DModel.Annotations;
 
 namespace CAD2DModel.Services.Implementations;
 
@@ -47,6 +48,50 @@ public class SnapService : ISnapService
         }
         
         return new SnapResult(point);
+    }
+    
+    public SnapResult Snap(Point2D point, IEnumerable<IEntity> entities, IEnumerable<IAnnotation> annotations, Camera2D camera)
+    {
+        // First try to snap to annotation control points (higher priority)
+        if ((ActiveSnapModes & SnapMode.Vertex) != 0)
+        {
+            var annotationSnap = SnapToAnnotationControlPoints(point, annotations, camera);
+            if (annotationSnap?.IsSnapped == true)
+                return annotationSnap;
+        }
+        
+        // Then fall back to regular entity snapping
+        return Snap(point, entities, camera);
+    }
+    
+    private SnapResult? SnapToAnnotationControlPoints(Point2D point, IEnumerable<IAnnotation> annotations, Camera2D camera)
+    {
+        double worldTolerance = VertexSnapTolerancePixels * camera.Scale;
+        
+        Point2D? closestPoint = null;
+        double closestDistance = double.MaxValue;
+        
+        foreach (var annotation in annotations)
+        {
+            var controlPoints = annotation.GetControlPoints();
+            foreach (var cp in controlPoints)
+            {
+                double distance = point.DistanceTo(cp.Location);
+                
+                if (distance < worldTolerance && distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestPoint = cp.Location;
+                }
+            }
+        }
+        
+        if (closestPoint.HasValue)
+        {
+            return new SnapResult(closestPoint.Value, true, SnapMode.Vertex, null);
+        }
+        
+        return null;
     }
     
     public SnapResult? SnapToVertex(Point2D point, IEnumerable<Polyline> polylines, Camera2D camera)

@@ -1,4 +1,5 @@
 using CAD2DModel.Geometry;
+using CAD2DModel.Annotations;
 
 namespace CAD2DModel.Services;
 
@@ -65,6 +66,7 @@ public interface IGeometryRuleEngine
 public interface IGeometryModel
 {
     System.Collections.ObjectModel.ObservableCollection<IEntity> Entities { get; }
+    System.Collections.ObjectModel.ObservableCollection<IAnnotation> Annotations { get; }
     void AddEntity(IEntity entity);
     void RemoveEntity(IEntity entity);
     IEntity? FindEntity(Guid id);

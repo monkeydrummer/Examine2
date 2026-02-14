@@ -1,3 +1,4 @@
+using CAD2DModel.Annotations;
 using CAD2DModel.Commands;
 using CAD2DModel.Services;
 
@@ -179,5 +180,67 @@ public class ModeManager : IModeManager
     private void OnModeChanged(IInteractionMode oldMode, IInteractionMode newMode)
     {
         ModeChanged?.Invoke(this, new ModeChangedEventArgs(oldMode, newMode));
+    }
+    
+    // Convenience methods for entering specific modes
+    
+    public void EnterIdleMode()
+    {
+        ReturnToIdle();
+    }
+    
+    public void EnterAddRulerMode()
+    {
+        var mode = new Modes.AddRulerMode(this, _commandManager, _geometryModel, _snapService);
+        EnterMode(mode);
+    }
+    
+    public void EnterAddArrowMode()
+    {
+        var mode = new Modes.AddArrowMode(this, _commandManager, _geometryModel, _snapService);
+        EnterMode(mode);
+    }
+    
+    public void EnterAddLineMode()
+    {
+        var mode = new Modes.AddLineMode(this, _commandManager, _geometryModel, _snapService);
+        EnterMode(mode);
+    }
+    
+    public void EnterAddDimensionMode()
+    {
+        var mode = new Modes.AddDimensionMode(this, _commandManager, _geometryModel, _snapService);
+        EnterMode(mode);
+    }
+    
+    public void EnterAddAngularDimensionMode()
+    {
+        var mode = new Modes.AddAngularDimensionMode(this, _commandManager, _geometryModel, _snapService);
+        EnterMode(mode);
+    }
+    
+    public void EnterAddRectangleMode()
+    {
+        var mode = new Modes.AddRectangleMode(this, _commandManager, _geometryModel, _snapService);
+        EnterMode(mode);
+    }
+    
+    public void EnterAddCircleMode()
+    {
+        var mode = new Modes.AddCircleMode(this, _commandManager, _geometryModel, _snapService);
+        EnterMode(mode);
+    }
+    
+    public void EnterAddEllipseMode()
+    {
+        var mode = new Modes.AddEllipseMode(this, _commandManager, _geometryModel, _snapService);
+        EnterMode(mode);
+    }
+    
+    public void EnterAddTextMode(string text = "Sample Text")
+    {
+        var mode = new Modes.AddTextMode(this, _commandManager, _geometryModel, _snapService);
+        mode.SetText(text);
+        EnterMode(mode);
     }
 }

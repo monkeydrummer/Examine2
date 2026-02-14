@@ -80,6 +80,24 @@
                 <MenuItem Header="Export D_XF..."/>
             </MenuItem>
             
+            <MenuItem Header="_Annotations">
+                <MenuItem Header="Measurement Tools">
+                    <MenuItem Header="_Ruler" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddRulerCommand}" ToolTip="Measure distance between two points"/>
+                    <MenuItem Header="_Dimension" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddDimensionCommand}" ToolTip="Create engineering dimension with offset line"/>
+                    <MenuItem Header="_Angular Dimension" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddAngularDimensionCommand}" ToolTip="Measure angle between two lines"/>
+                </MenuItem>
+                <MenuItem Header="Drawing Tools">
+                    <MenuItem Header="_Line" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddLineCommand}" ToolTip="Draw a simple line"/>
+                    <MenuItem Header="_Arrow" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddArrowCommand}" ToolTip="Draw an arrow"/>
+                    <MenuItem Header="_Rectangle" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddRectangleCommand}" ToolTip="Draw a rectangle"/>
+                    <MenuItem Header="_Circle/Ellipse" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddEllipseCommand}" ToolTip="Draw a circle or ellipse"/>
+                    <MenuItem Header="_Polygon" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddPolygonCommand}" ToolTip="Draw a closed polygon"/>
+                </MenuItem>
+                <MenuItem Header="_Text" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddTextCommand}" ToolTip="Add text annotation"/>
+                <Separator/>
+                <MenuItem Header="_Delete Selected Annotation" Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=DeleteAnnotationCommand}" InputGestureText="Del"/>
+            </MenuItem>
+            
             <MenuItem Header="_Analysis">
                 <MenuItem Header="Run _Analysis" InputGestureText="F5"/>
                 <MenuItem Header="_Stop Analysis" InputGestureText="Esc"/>
@@ -124,6 +142,22 @@
                         Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=MoveBoundaryModeCommand}"/>
                 <Separator/>
                 <Button Content="Contours..." ToolTip="Contour Settings" Click="ContourSettings_Click"/>
+            </ToolBar>
+            
+            <ToolBar Header="Annotations">
+                <Button Content="Ruler" ToolTip="Measure distance (Ruler)" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddRulerCommand}"/>
+                <Button Content="Dimension" ToolTip="Add dimension line" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddDimensionCommand}"/>
+                <Button Content="Arrow" ToolTip="Draw arrow" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddArrowCommand}"/>
+                <Button Content="Text" ToolTip="Add text" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddTextCommand}"/>
+                <Separator/>
+                <Button Content="Rectangle" ToolTip="Draw rectangle" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddRectangleCommand}"/>
+                <Button Content="Circle" ToolTip="Draw circle/ellipse" 
+                        Command="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=AddEllipseCommand}"/>
             </ToolBar>
             
             <ToolBar>

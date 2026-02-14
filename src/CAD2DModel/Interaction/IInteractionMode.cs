@@ -157,4 +157,51 @@ public interface IRenderContext
     /// Draw a snap indicator at the specified world point
     /// </summary>
     void DrawSnapIndicator(Point2D worldPoint, CAD2DModel.Services.SnapMode snapType);
+    
+    /// <summary>
+    /// Draw text at world coordinates with optional rotation
+    /// </summary>
+    void DrawText(string text, Point2D worldPosition, float fontSize, string fontFamily, 
+                  byte r, byte g, byte b, double rotationDegrees = 0, bool bold = false, 
+                  bool italic = false, bool drawBackground = false, byte bgR = 255, byte bgG = 255, 
+                  byte bgB = 255, byte bgA = 200);
+    
+    /// <summary>
+    /// Draw a rectangle in world coordinates
+    /// </summary>
+    void DrawRectangle(Point2D worldTopLeft, Point2D worldBottomRight, byte r, byte g, byte b, 
+                       float strokeWidth = 1, bool filled = false, byte fillR = 128, byte fillG = 128, 
+                       byte fillB = 128, byte fillA = 100);
+    
+    /// <summary>
+    /// Draw a rectangle in world coordinates (position and size overload)
+    /// </summary>
+    void DrawRectangle(Point2D worldTopLeft, double width, double height, byte r, byte g, byte b, 
+                       float strokeWidth = 1, bool filled = false, byte fillR = 128, byte fillG = 128, 
+                       byte fillB = 128, byte fillA = 100);
+    
+    /// <summary>
+    /// Draw a circle in world coordinates
+    /// </summary>
+    void DrawCircle(Point2D worldCenter, double worldRadius, byte r, byte g, byte b, 
+                    float strokeWidth = 1, bool filled = false, byte fillR = 128, byte fillG = 128, 
+                    byte fillB = 128, byte fillA = 100);
+    
+    /// <summary>
+    /// Draw an arc in world coordinates
+    /// </summary>
+    void DrawArc(Point2D worldCenter, double worldRadius, double startAngleDegrees, 
+                 double sweepAngleDegrees, byte r, byte g, byte b, float strokeWidth = 1);
+    
+    /// <summary>
+    /// Draw an arrow head at the end of a line
+    /// </summary>
+    void DrawArrowHead(Point2D worldLineStart, Point2D worldLineEnd, byte r, byte g, byte b, 
+                       double arrowSize = 10.0, bool filled = true);
+    
+    /// <summary>
+    /// Draw a control point handle at world coordinates (rendered in screen space with fixed size)
+    /// </summary>
+    void DrawControlPoint(Point2D worldPosition, byte r = 0, byte g = 100, byte b = 255, 
+                         bool highlighted = false);
 }

@@ -72,6 +72,11 @@ public interface ISnapService
     SnapResult Snap(Point2D point, IEnumerable<IEntity> entities, CAD2DModel.Camera.Camera2D camera);
     
     /// <summary>
+    /// Attempt to snap a point to nearby geometry and annotations
+    /// </summary>
+    SnapResult Snap(Point2D point, IEnumerable<IEntity> entities, IEnumerable<CAD2DModel.Annotations.IAnnotation> annotations, CAD2DModel.Camera.Camera2D camera);
+    
+    /// <summary>
     /// Snap to vertex
     /// </summary>
     SnapResult? SnapToVertex(Point2D point, IEnumerable<Polyline> polylines, CAD2DModel.Camera.Camera2D camera);

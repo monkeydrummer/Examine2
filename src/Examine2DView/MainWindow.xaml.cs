@@ -7,6 +7,7 @@ using CAD2DModel.Interaction;
 using CAD2DModel.Interaction.Implementations.Modes;
 using CAD2DModel.Services;
 using CAD2DModel.Results;
+using CAD2DModel.Annotations;
 using CAD2DViewModels.ViewModels;
 using Examine2DView.Dialogs;
 using Examine2DModel.BEM;
@@ -33,6 +34,18 @@ public partial class MainWindow : Window
     public System.Windows.Input.ICommand MoveVertexModeCommand { get; }
     public System.Windows.Input.ICommand MoveBoundaryModeCommand { get; }
     
+    // Annotation commands
+    public System.Windows.Input.ICommand AddRulerCommand { get; }
+    public System.Windows.Input.ICommand AddDimensionCommand { get; }
+    public System.Windows.Input.ICommand AddAngularDimensionCommand { get; }
+    public System.Windows.Input.ICommand AddLineCommand { get; }
+    public System.Windows.Input.ICommand AddArrowCommand { get; }
+    public System.Windows.Input.ICommand AddRectangleCommand { get; }
+    public System.Windows.Input.ICommand AddEllipseCommand { get; }
+    public System.Windows.Input.ICommand AddPolygonCommand { get; }
+    public System.Windows.Input.ICommand AddTextCommand { get; }
+    public System.Windows.Input.ICommand DeleteAnnotationCommand { get; }
+    
     // Zoom commands
     public System.Windows.Input.ICommand ZoomInCommand { get; }
     public System.Windows.Input.ICommand ZoomOutCommand { get; }
@@ -50,6 +63,18 @@ public partial class MainWindow : Window
         AddPolylineModeCommand = new RelayCommand(EnterAddPolylineMode);
         MoveVertexModeCommand = new RelayCommand(EnterMoveVertexMode);
         MoveBoundaryModeCommand = new RelayCommand(EnterMoveBoundaryMode);
+        
+        // Initialize annotation commands
+        AddRulerCommand = new RelayCommand(AddRuler);
+        AddDimensionCommand = new RelayCommand(AddDimension);
+        AddAngularDimensionCommand = new RelayCommand(AddAngularDimension);
+        AddLineCommand = new RelayCommand(AddLine);
+        AddArrowCommand = new RelayCommand(AddArrow);
+        AddRectangleCommand = new RelayCommand(AddRectangle);
+        AddEllipseCommand = new RelayCommand(AddEllipse);
+        AddPolygonCommand = new RelayCommand(AddPolygon);
+        AddTextCommand = new RelayCommand(AddText);
+        DeleteAnnotationCommand = new RelayCommand(DeleteAnnotation);
         
         // Initialize zoom commands
         ZoomInCommand = new RelayCommand(ZoomIn);
@@ -165,6 +190,83 @@ public partial class MainWindow : Window
         {
             var mode = new MoveBoundaryMode(_modeManager, commandManager, selectionService, snapService, geometryModel);
             _modeManager.EnterMode(mode);
+        }
+    }
+    
+    // Annotation command implementations
+    private void AddRuler()
+    {
+        if (_modeManager == null) return;
+        _modeManager.EnterAddRulerMode();
+    }
+    
+    private void AddDimension()
+    {
+        if (_modeManager == null) return;
+        _modeManager.EnterAddDimensionMode();
+    }
+    
+    private void AddAngularDimension()
+    {
+        if (_modeManager == null) return;
+        _modeManager.EnterAddAngularDimensionMode();
+    }
+    
+    private void AddLine()
+    {
+        if (_modeManager == null) return;
+        _modeManager.EnterAddLineMode();
+    }
+    
+    private void AddArrow()
+    {
+        if (_modeManager == null) return;
+        _modeManager.EnterAddArrowMode();
+    }
+    
+    private void AddRectangle()
+    {
+        if (_modeManager == null) return;
+        _modeManager.EnterAddRectangleMode();
+    }
+    
+    private void AddEllipse()
+    {
+        if (_modeManager == null) return;
+        _modeManager.EnterAddEllipseMode();
+    }
+    
+    private void AddPolygon()
+    {
+        // TODO: Implement AddPolygonMode for interactive polygon creation
+        MessageBox.Show("Polygon mode not yet implemented. Use polyline tool instead.", "Not Implemented", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+    
+    private void AddText()
+    {
+        if (_modeManager == null) return;
+        
+        // In a complete implementation, could show a dialog to get the text first
+        // For now, use default text
+        _modeManager.EnterAddTextMode("Sample Text");
+    }
+    
+    private void DeleteAnnotation()
+    {
+        var geometryModel = _serviceProvider?.GetService<IGeometryModel>();
+        if (geometryModel == null) return;
+        
+        // Find and delete the first editing or selected annotation
+        var annotationToDelete = geometryModel.Annotations.FirstOrDefault(a => a.IsEditing || a.IsSelected);
+        
+        if (annotationToDelete != null)
+        {
+            geometryModel.Annotations.Remove(annotationToDelete);
+            MessageBox.Show("Annotation deleted!", "Annotation Deleted", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            MessageBox.Show("No annotation is selected. Click an annotation first to select it.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
     
